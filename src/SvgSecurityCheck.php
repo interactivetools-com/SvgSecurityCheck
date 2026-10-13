@@ -150,6 +150,25 @@ final class SvgSecurityCheck
     private const ANIMATION_TARGETS_EXCLUDED = ['href', 'style', 'class', 'id'];   // allowed in the file but not as targets: they change URLs, CSS and references after the check
     private const ANIMATION_VALUE_ATTRIBUTES = ['from', 'to', 'by', 'values'];
 
+    /**
+     * CSS functions allowed in <style>, style= and presentation attributes, lowercase. Outside
+     * resources load through functions (url(), image-set()), so a function a browser adds later
+     * is rejected until it is listed here. url() targets are checked on their own.
+     */
+    private const CSS_FUNCTIONS = [
+        'url', 'format',                                                                          // references, @font-face
+        'matrix', 'translate', 'translatex', 'translatey', 'scale', 'scalex', 'scaley', 'rotate', 'skew', 'skewx', 'skewy',
+        'rgb', 'rgba', 'hsl', 'hsla', 'icc-color',                                                // colors
+        'blur', 'brightness', 'contrast', 'drop-shadow', 'grayscale', 'hue-rotate', 'invert', 'opacity', 'saturate', 'sepia',
+        'circle', 'ellipse', 'inset', 'polygon', 'path', 'rect',                                  // shapes, for clip-path and clip
+        'calc', 'var', 'min', 'max', 'clamp',                                                     // math and custom properties
+        'cubic-bezier', 'steps',                                                                  // animation timing
+        'not', 'is', 'where', 'has', 'nth-child', 'nth-last-child', 'nth-of-type', 'nth-last-of-type', 'lang', 'dir',   // selectors
+    ];
+
+    /** CSS at-rules allowed in <style> and style=, lowercase and without the @. */
+    private const CSS_AT_RULES = ['font-face', 'keyframes', '-webkit-keyframes', 'media', 'supports', 'charset'];
+
     //endregion
     //region Patterns and Limits
 
@@ -160,8 +179,16 @@ final class SvgSecurityCheck
     // quantifiers (*+ ?+) stop the regex from backtracking past the quote to dodge the # lookahead.
     private const URL_NOT_FRAGMENT = '/url\(\s*+["\']?+\s*+(?!#)/i';
 
-    // CSS that can escape, import, or fetch: a backslash (CSS escapes), @import, and the functions that load URLs
-    private const CSS_FORBIDDEN = '/\\\\|@import|image\(|image-set\(|src\(|expression\(|-moz-binding|behavior\s*:/i';
+    // CSS the allowlists cannot catch: a backslash (an escape could spell any name) and the two properties
+    // old Firefox and IE used to attach code, whose value is an allowed url(#id)
+    private const CSS_BANNED = '/\\\\|-moz-binding|behavior\s*+:/i';
+
+    // a CSS function name and its (: rgb(, image-set(, --custom(. The lookbehind makes it a whole name, so in
+    // x-rotate( the name is x-rotate. Possessive, so a long name costs one pass.
+    private const CSS_FUNCTION = '/(?<![\w-])(-{0,2}+[a-z_][\w-]*+)\(/i';
+
+    // a CSS at-rule name: @media, @import
+    private const CSS_AT_RULE = '/@(-?+[a-z_][\w-]*+)/i';
 
     // url( in CSS that is not #id and not an embedded font (data:font/... or data:;base64,...), with up to 40 chars of context
     // (u so the 40 counts characters, not bytes: a cut inside a multibyte character would make detail invalid UTF-8)
@@ -232,7 +259,8 @@ final class SvgSecurityCheck
     /**
      * Returns the allowlists as arrays, keyed by what they list: elements, attributes,
      * namespacedAttributes, inertNamespaces, inertProcessingInstructions, imageElements,
-     * dataImageTypes. For documentation and debugging; the rules themselves are not configurable.
+     * dataImageTypes, cssFunctions, cssAtRules. For documentation and debugging; the rules
+     * themselves are not configurable.
      *
      * @return array<string, array>
      */
@@ -246,6 +274,8 @@ final class SvgSecurityCheck
             'inertProcessingInstructions' => self::INERT_PROCESSING_INSTRUCTIONS,
             'imageElements'               => self::IMAGE_ELEMENTS,
             'dataImageTypes'              => ['png', 'jpeg', 'jpg', 'gif', 'webp', 'svg+xml'],
+            'cssFunctions'                => self::CSS_FUNCTIONS,
+            'cssAtRules'                  => self::CSS_AT_RULES,
         ];
     }
 
@@ -571,8 +601,11 @@ final class SvgSecurityCheck
         } else {
             // presentation attributes are CSS values: u\72l( reads as url( to a browser, and mask="image-set(...)" loads the image
             $isCssValue = !str_starts_with($attribute, 'data-') && !str_starts_with($attribute, 'aria-');
-            if ($isCssValue && preg_match(self::CSS_FORBIDDEN, $value, $match)) {
-                $this->fail('css-not-allowed', $match[0]);
+            if ($isCssValue) {
+                if (preg_match(self::CSS_BANNED, $value, $match)) {
+                    $this->fail('css-not-allowed', $match[0]);
+                }
+                $this->checkCssNames($value, self::CSS_FUNCTION, self::CSS_FUNCTIONS);
             }
             if (preg_match(self::URL_NOT_FRAGMENT, $value)) {
                 $this->fail('url-not-fragment', self::excerpt($name));   // fill="url(https://...)" and friends
@@ -844,11 +877,30 @@ final class SvgSecurityCheck
      */
     private function checkCss(string $css): void
     {
-        if (preg_match(self::CSS_FORBIDDEN, $css, $match)) {
+        if (preg_match(self::CSS_BANNED, $css, $match)) {
             $this->fail('css-not-allowed', $match[0]);
         }
+        $this->checkCssNames($css, self::CSS_FUNCTION, self::CSS_FUNCTIONS);
+        $this->checkCssNames($css, self::CSS_AT_RULE, self::CSS_AT_RULES);
         if (preg_match(self::CSS_URL_NOT_ALLOWED, $css, $match)) {
             $this->fail('css-not-allowed', self::excerpt($match[0]));
+        }
+    }
+
+    /**
+     * Rejects every function or at-rule name in $css that is not in $allowed, with the name as
+     * written as the detail: image-set( or @import. Comments and strings are scanned too.
+     */
+    private function checkCssNames(string $css, string $pattern, array $allowed): void
+    {
+        if (preg_match_all($pattern, $css, $matches) === false) {   // a PCRE limit was reached, so the names are unknown
+            $this->fail('css-not-allowed', 'text that could not be scanned');
+            return;
+        }
+        foreach ($matches[1] as $index => $name) {
+            if (!in_array(strtolower($name), $allowed, true)) {
+                $this->fail('css-not-allowed', self::excerpt($matches[0][$index]));
+            }
         }
     }
 

@@ -221,7 +221,7 @@ class ResultTest extends SvgSecurityCheckTestCase
     public function testRulesLists(): void
     {
         $rules = SvgSecurityCheck::rules();
-        $this->assertSame(['elements', 'attributes', 'namespacedAttributes', 'inertNamespaces', 'inertProcessingInstructions', 'imageElements', 'dataImageTypes'], array_keys($rules));
+        $this->assertSame(['elements', 'attributes', 'namespacedAttributes', 'inertNamespaces', 'inertProcessingInstructions', 'imageElements', 'dataImageTypes', 'cssFunctions', 'cssAtRules'], array_keys($rules));
         $this->assertContains('svg', $rules['elements']);
         $this->assertNotContains('script', $rules['elements']);
         $this->assertNotContains('foreignObject', $rules['elements']);

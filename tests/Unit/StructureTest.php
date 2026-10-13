@@ -229,7 +229,7 @@ class StructureTest extends SvgSecurityCheckTestCase
             'title without >'          => ['<title><![CDATA[Logo & wordmark]]></title>'],
             'desc without >'           => ['<desc><![CDATA[a < b]]></desc>'],
             'title with > as entity'   => ['<title>&lt;/title&gt;&lt;script&gt;alert(1)&lt;/script&gt;</title>'],
-            'style with >'             => ['<style><![CDATA[ .x{content:"</style><script>alert(1)</script>"} ]]></style>'],
+            'style with >'             => ['<style><![CDATA[ .x{content:"</style><script>alert</script>"} ]]></style>'],
             'text with >'              => ['<text><![CDATA[a > b]]></text>'],
             'sibling after title'      => ['<title><![CDATA[x]]></title><text><![CDATA[a > b]]></text>'],
             'empty title element'      => ['<title/><text><![CDATA[a > b]]></text>'],

@@ -114,6 +114,86 @@ class CssTest extends SvgSecurityCheckTestCase
     }
 
     //endregion
+    //region Function and At-Rule Allowlists
+
+    #[DataProvider('allowedFunctionProvider')]
+    public function testAllowedFunction(string $name): void
+    {
+        $call = $name === 'url' ? 'url(#a)' : "$name(1)";
+        $this->assertAccepts($this->svg("<style>.a{x:$call}</style>"));
+        $this->assertAccepts($this->svg("<rect fill=\"$call\"/>"));
+    }
+
+    public static function allowedFunctionProvider(): array
+    {
+        $cases = [];
+        foreach (SvgSecurityCheck::rules()['cssFunctions'] as $name) {
+            $cases[$name] = [$name];
+        }
+        $cases['upper case'] = ['RGB'];
+        $cases['camel case'] = ['skewX'];   // SVG's transform attribute writes it this way
+        return $cases;
+    }
+
+    #[DataProvider('allowedAtRuleProvider')]
+    public function testAllowedAtRule(string $name): void
+    {
+        $this->assertAccepts($this->svg("<style>@$name a{}</style>"));
+    }
+
+    public static function allowedAtRuleProvider(): array
+    {
+        $cases = [];
+        foreach (SvgSecurityCheck::rules()['cssAtRules'] as $name) {
+            $cases[$name] = [$name];
+        }
+        return $cases;
+    }
+
+    /** A function a browser could add later is rejected until it is listed, in a stylesheet and in a presentation attribute. */
+    #[DataProvider('unlistedFunctionProvider')]
+    public function testUnlistedFunctionRejected(string $value, string $detail): void
+    {
+        $this->assertRejects($this->svg("<style>.a{x:$value}</style>"), 'css-not-allowed', $detail);
+        $this->assertRejects($this->svg('<rect fill="' . htmlspecialchars($value, ENT_QUOTES) . '"/>'), 'css-not-allowed', $detail);
+    }
+
+    public static function unlistedFunctionProvider(): array
+    {
+        return [
+            'cross-fade, loads images' => ['cross-fade(url(#a), url(#b))', 'cross-fade('],
+            'element, renders others'  => ['element(#a)', 'element('],
+            'prefixed image-set'       => ['-webkit-image-set("x.png" 1x)', '-webkit-image-set('],
+            'newer color'              => ['oklch(0.5 0.1 200)', 'oklch('],
+            'attr'                     => ['attr(data-x)', 'attr('],
+            'custom function'          => ['--load(x)', '--load('],
+            'longer name'              => ['x-rotate(1)', 'x-rotate('],   // a whole name, not the rotate at its end
+            'inside a string'          => ['"alert(1)"', 'alert('],      // strings are scanned like everything else
+        ];
+    }
+
+    #[DataProvider('unlistedAtRuleProvider')]
+    public function testUnlistedAtRuleRejected(string $css, string $detail): void
+    {
+        $this->assertRejects($this->svg("<style>$css</style>"), 'css-not-allowed', $detail);
+    }
+
+    public static function unlistedAtRuleProvider(): array
+    {
+        return [
+            'namespace'           => ['@namespace svg url(#a);', '@namespace'],
+            'layer'               => ['@layer base{.a{fill:red}}', '@layer'],
+            'moz-document'        => ['@-moz-document url-prefix(){.a{fill:red}}', '@-moz-document'],
+            'property'            => ['@property --x{syntax:"*"}', '@property'],
+        ];
+    }
+
+    public function testSvgTransformAttributeAccepted(): void
+    {
+        $this->assertAccepts($this->svg('<g transform="matrix(1 0 0 1 0 0) translate(5,5) rotate(45) skewX(10) skewY(10) scale(2)"/>'));
+    }
+
+    //endregion
     //region Where the Text Comes From
 
     /** Comment contents are scanned too: a string like content:"/*" can fake a comment start, so stripping them is unsafe. */
@@ -154,7 +234,7 @@ class CssTest extends SvgSecurityCheckTestCase
      */
     public function testMarkupInsideCdataStaysText(): void
     {
-        $markup = '<![CDATA[<p/><img src=x onerror=alert(1)>]]>';
+        $markup = '<![CDATA[<p/><img src=x onerror=alert>]]>';
         $this->assertAccepts($this->svg("<text>$markup</text>"));
         $this->assertAccepts($this->svg("<style>$markup</style>"));
     }

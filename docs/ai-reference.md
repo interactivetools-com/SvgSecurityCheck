@@ -32,9 +32,9 @@ things when an SVG is shown through an `<img>` tag, but not when the file is ope
 own; SvgSecurityCheck checks the file, so it is safe either way. The file is **never modified**:
 there is no cleaned output, and the caller stores the original bytes or refuses the upload.
 
-Every rule is an allowlist, except CSS, which is scanned for a short list of tokens.
-Elements, attributes, XML namespaces, URL forms and animation targets not on a list are
-rejected. The rules have no options: every install checks the same way. The size limits
+Every rule is an allowlist. Elements, attributes, XML namespaces, URL forms, animation
+targets, CSS functions and CSS at-rules not on a list are rejected. Three CSS tokens the
+lists cannot catch are also banned by name: a backslash, `-moz-binding` and `behavior:`. The rules have no options: every install checks the same way. The size limits
 are public static properties, see [Limits](#limits).
 
 ```php
@@ -64,7 +64,7 @@ throws. Neither method looks at the file name, extension, or MIME type.
 
 `rules()` returns an array with the keys `elements`, `attributes`, `namespacedAttributes`
 (keyed by namespace URI), `inertNamespaces`, `inertProcessingInstructions`, `imageElements`,
-and `dataImageTypes`. See [Allowlists](#allowlists). The lists are constants; changing the
+`dataImageTypes`, `cssFunctions` and `cssAtRules`. See [Allowlists](#allowlists). The lists are constants; changing the
 returned array changes nothing.
 
 ### Result
@@ -165,7 +165,7 @@ Every code, its template, and what `detail` holds. Templates are `Violation::TEM
 | `embedded-svg-not-allowed`      | `An embedded SVG image was rejected: %s`                                                | the inner file's message, `the data: URL is not valid base64`, or `SVG images nested more than 3 levels deep`                                                   |
 | `url-not-fragment`              | `url() in the %s attribute must reference an element in the same file (#id)`            | the attribute name                                                                                                                                              |
 | `reference-expansion-too-large` | `The references in this file %s`                                                        | `form a loop (#a -> #b -> #a)`, `expand to more than 100,000 elements`, or `need more than 100,000 records to track (ids and references)`                       |
-| `css-not-allowed`               | `CSS containing %s is not allowed`                                                      | the banned token as matched (`@import`, `\`, `url(https://example.com/a.css`) or `more than 1,000,000 bytes`                                                    |
+| `css-not-allowed`               | `CSS containing %s is not allowed`                                                      | the token, function or at-rule as matched (`\`, `image-set(`, `@import`, `url(https://example.com/a.css`) or `more than 1,000,000 bytes`                        |
 | `animation-target-not-allowed`  | `Animating the %s attribute is not allowed`                                             | the `attributeName` value                                                                                                                                       |
 | `animation-value-not-allowed`   | `The %s animation attribute contains a URL or scheme`                                   | `from`, `to`, `by`, or `values`                                                                                                                                 |
 
@@ -268,8 +268,8 @@ three levels deep; a fourth level rejects.
 for `url(` followed by optional whitespace and an optional quote and then anything but `#`
 (case-insensitive). A match rejects with `url-not-fragment` and the attribute name.
 `fill="url(#gradient)"` and `fill="url( '#gradient' )"` pass; `fill="url(image.png)"` and
-`fill="url(https://...)"` reject. The eight banned CSS tokens (rule 1 under Rules: CSS below)
-reject in these values too, with `css-not-allowed` and the token as the detail:
+`fill="url(https://...)"` reject. CSS rules 1 and 2 (banned tokens and the function
+allowlist, under Rules: CSS below) apply to these values too, with `css-not-allowed`:
 presentation attributes are CSS values, so `fill="u\72l(...)"` is `url(...)` to a browser
 and `mask="image-set('https://...' 1x)"` loads that image. `data-*` and `aria-*` values
 are not CSS and are exempt.
@@ -277,23 +277,30 @@ are not CSS and are exempt.
 ## Rules: CSS
 
 Applies to the text of every `<style>` element (including CDATA sections and text inside
-child elements) and to every `style` attribute; rule 1 also runs on every other attribute
-value except `href`, `data-*` and `aria-*`. Two regular expressions, case-insensitive:
+child elements) and to every `style` attribute; rules 1 and 2 also run on every other
+attribute value except `href`, `data-*` and `aria-*`. All matching is case-insensitive:
 
-1. Any of these tokens rejects with `css-not-allowed` and the token as the detail: a
-   backslash `\`, `@import`, `image(`, `image-set(`, `src(`, `expression(`,
-   `-moz-binding`, `behavior:` (whitespace before the colon allowed).
-2. `url(` whose target, after optional whitespace and quote, does not start with `#`,
+1. **Banned tokens**, which the allowlists cannot catch: a backslash `\` (an escape could
+   spell any name), and `-moz-binding` and `behavior:` (whitespace before the colon allowed),
+   the properties old Firefox and IE used to attach code, whose `url(#id)` value would
+   otherwise pass. Each rejects with `css-not-allowed` and the token as the detail.
+2. **Function names.** Every name directly followed by `(` must be in
+   [`cssFunctions`](#allowlists), else `css-not-allowed` with the name and `(` as the detail
+   (`image-set(`, `oklch(`). Outside resources load through functions, so one a browser adds
+   later is rejected until it is listed.
+3. **At-rules.** Every `@name` must be in [`cssAtRules`](#allowlists), else `css-not-allowed`
+   with the at-rule as the detail (`@import`).
+4. `url(` whose target, after optional whitespace and quote, does not start with `#`,
    `data:font/`, or `data:;base64,` rejects with the `url(` and up to 40 characters after it
    as the detail.
-3. More than 1,000,000 bytes of text in one `<style>` element rejects with
+5. More than 1,000,000 bytes of text in one `<style>` element rejects with
    `more than 1,000,000 bytes` as the detail. The text is held whole until the closing tag,
    so the limit keeps memory at 1 MB; the largest `<style>` in the corpus is 64 KB.
 
 So `fill: url(#p)` passes, `@font-face { src: url(data:font/woff2;base64,...) }` passes
-anywhere in the CSS, and `background: url(https://...)`, `@import`, and any escape sequence
-reject. Comments are not stripped: a banned token inside `/* */` still rejects. Selectors,
-properties, `:hover`, `:visited`, `@media`, `@keyframes` and `!important` are not checked.
+anywhere in the CSS, and `background: url(https://...)`, `@import`, `image-set(...)` and any
+escape sequence reject. Comments and strings are not skipped: `content: "alert(1)"` rejects
+for `alert(`. Selectors, properties, `:hover`, `:visited` and `!important` are not checked.
 
 ## Rules: Animation
 
@@ -433,6 +440,26 @@ xpacket
 **`dataImageTypes`**: <!-- rules:dataImageTypes -->
 `png`, `jpeg`, `jpg`, `gif`, `webp`, `svg+xml`
 <!-- /rules:dataImageTypes -->
+
+**`cssFunctions`**: function names allowed in CSS and presentation attributes, matched
+case-insensitively. See [Rules: CSS](#rules-css).
+
+<!-- rules:cssFunctions -->
+```text
+url format matrix translate translatex translatey scale scalex scaley rotate skew skewx skewy rgb
+rgba hsl hsla icc-color blur brightness contrast drop-shadow grayscale hue-rotate invert opacity
+saturate sepia circle ellipse inset polygon path rect calc var min max clamp cubic-bezier steps not
+is where has nth-child nth-last-child nth-of-type nth-last-of-type lang dir
+```
+<!-- /rules:cssFunctions -->
+
+**`cssAtRules`**: at-rules allowed in CSS, without the `@`, matched case-insensitively.
+
+<!-- rules:cssAtRules -->
+```text
+font-face keyframes -webkit-keyframes media supports charset
+```
+<!-- /rules:cssAtRules -->
 
 ## Limits
 

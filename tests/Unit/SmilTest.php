@@ -47,10 +47,10 @@ class SmilTest extends SvgSecurityCheckTestCase
         ];
     }
 
-    /** from/to on a shape mean nothing, so only the general url() rule applies to them there. */
+    /** from/to on a shape mean nothing, so only the general CSS and url() rules apply to them there. */
     public function testValueAttributesOnANonAnimationElementAreNotChecked(): void
     {
-        $this->assertAccepts($this->svg('<rect from="javascript:alert(1)"/>'));
+        $this->assertAccepts($this->svg('<rect from="javascript:alert"/>'));
         $this->assertRejects($this->svg('<rect to="url(https://evil.example/p.svg#a)"/>'), 'url-not-fragment', 'to');
     }
 
@@ -134,7 +134,7 @@ class SmilTest extends SvgSecurityCheckTestCase
 
     public function testHrefRewriteReportsBothProblems(): void
     {
-        $result = SvgSecurityCheck::checkString($this->svg('<a href="#a"><set attributeName="href" to="javascript:alert(1)"/></a>'));
+        $result = SvgSecurityCheck::checkString($this->svg('<a href="#a"><set attributeName="href" to="javascript:alert"/></a>'));
         $this->assertSame(['animation-target-not-allowed', 'animation-value-not-allowed'], array_column($result->errors, 'code'));
     }
 

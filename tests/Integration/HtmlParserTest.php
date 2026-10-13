@@ -17,6 +17,10 @@ use PHPUnit\Framework\Attributes\RequiresPhp;
  * The inputs are the accept fixtures plus files built to sit right next to a rule: CDATA,
  * comments and processing instructions holding markup, metadata elements, and HTML-looking
  * text inside <title> and <desc>.
+ *
+ * PHP's parser is not Chrome's. Chrome reads <![CDATA[ directly inside <title> or <desc> as a
+ * comment that ends at the first >, so markup in it runs; PHP keeps it as text. So this test
+ * cannot catch a regression in the CDATA rule. StructureTest's CDATA cases do.
  */
 #[RequiresPhp('>= 8.4')]
 class HtmlParserTest extends SvgSecurityCheckTestCase
@@ -57,7 +61,7 @@ class HtmlParserTest extends SvgSecurityCheckTestCase
         }
 
         $open     = '<svg xmlns="' . self::SVG_NS . '">';
-        $payload  = '<img src=x onerror=alert(1)>';
+        $payload  = '<img src=x onerror=alert>';   // no (: alert( in <style> is an unlisted CSS function and would reject
         $nearMiss = [
             'cdata in a group'              => "<g><![CDATA[>$payload]]></g>",
             'cdata in style'                => "<style><![CDATA[a{}</style>$payload]]></style>",
@@ -67,7 +71,7 @@ class HtmlParserTest extends SvgSecurityCheckTestCase
             'escaped markup in title'       => '<title>&lt;img src=x onerror=alert(1)&gt;</title>',
             'cdata in title without >'      => '<title><![CDATA[<img src=x onerror=alert(1)]]></title>',
             'link inside desc'              => '<desc><a href="#x">text</a></desc>',
-            'escaped style end in title'    => '<title><style>&lt;/style&gt;&lt;img src=x onerror=alert(1)&gt;</style></title>',
+            'escaped style end in title'    => '<title><style>&lt;/style&gt;&lt;img src=x onerror=alert&gt;</style></title>',
             'metadata with prefixed script' => '<x:scripted xmlns:x="http://ns.adobe.com/x">alert(1)</x:scripted>',
         ];
         foreach ($nearMiss as $name => $body) {

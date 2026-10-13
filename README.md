@@ -19,9 +19,8 @@ it ([benchmarks](benchmarks/results.md)).
 A sanitizer hands back a changed file, and a logo that renders differently from what the
 designer exported is a support ticket nobody can explain. SvgSecurityCheck never rewrites the
 file: a rejection with a reason costs a re-export, and a cleaned file that still holds something
-the filter did not know about costs an XSS. Elements, attributes, namespaces and URL forms are
-checked against allowlists, so a new one is rejected until it is added. CSS is the exception: it
-is checked for a short list of banned tokens.
+the filter did not know about costs an XSS. Elements, attributes, namespaces, URL forms and CSS
+functions are all checked against allowlists, so a new one is rejected until it is added.
 
 ## Documentation
 
@@ -80,9 +79,9 @@ SvgSecurityCheck::rules();             // the allowlists, for reading; the rules
   HTML parser reads differently is rejected too, so no script runs even if the file is served
   as `text/html`.
 - **Outside resources.** `href` must be `#id`, or an embedded `data:` image on `<image>` and
-  `<feImage>`. `url()` must be `#id`, or an embedded font in CSS. CSS `@import`, `image()`,
-  `image-set()` and `<?xml-stylesheet?>` are rejected. An outside load lets another server
-  log who opened the file.
+  `<feImage>`. `url()` must be `#id`, or an embedded font in CSS. CSS functions and at-rules
+  not on a list, such as `image-set()` and `@import`, are rejected, and so is
+  `<?xml-stylesheet?>`. An outside load lets another server log who opened the file.
 - **Parser and renderer hangs.** DTD entity declarations are rejected: an entity can expand to
   markup no other rule sees, or to gigabytes of text. So are reference loops, and `<use>` or
   pattern chains where a few dozen references render billions of elements, which browsers cap
