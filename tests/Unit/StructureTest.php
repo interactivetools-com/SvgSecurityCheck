@@ -14,8 +14,8 @@ use ReflectionClass;
  * libxml reports about well-formedness.
  *
  * Codes: file-unreadable, not-svg, not-utf8, doctype-not-allowed,
- * processing-instruction, comment-not-allowed, cdata-not-allowed, root-not-svg,
- * root-namespace-wrong, malformed-xml.
+ * processing-instruction, comment-not-allowed, cdata-not-allowed,
+ * element-in-title-or-desc, root-not-svg, root-namespace-wrong, malformed-xml.
  *
  * libxml's 10 MB text-node limit is not exercised: building the input costs more
  * than it proves. The depth limit is, since 300 nested elements are cheap.
@@ -251,6 +251,36 @@ class StructureTest extends SvgSecurityCheckTestCase
             'second CDATA section'     => ['<title><![CDATA[safe]]><![CDATA[</title><script>alert(1)</script>]]></title>', 'title'],
             'nested title in a group'  => ['<g><g><title><![CDATA[a > b]]></title></g></g>', 'title'],
         ];
+    }
+
+    //endregion
+    //region Elements in Title and Desc
+
+    /**
+     * An HTML parser reads elements inside <title> and <desc> as HTML. There <style/> is not
+     * empty, so the text after it becomes CSS this check never saw, if the file were served
+     * as text/html. So the two hold text only.
+     */
+    #[DataProvider('elementInTitleOrDescProvider')]
+    public function testElementInTitleOrDescRejected(string $body, string $detail): void
+    {
+        $this->assertRejects($this->svg($body), 'element-in-title-or-desc', $detail);
+    }
+
+    public static function elementInTitleOrDescProvider(): array
+    {
+        return [
+            'self-closed style in desc'  => ['<desc><style/>svg{fill:red}</desc>', 'style'],
+            'self-closed style in title' => ['<title><style/>svg{fill:red}</title>', 'style'],
+            'link in desc'               => ['<desc><a href="#a">text</a></desc>', 'a'],
+            'deeper inside'              => ['<title><tspan><tspan/></tspan></title>', 'tspan'],
+            'metadata element'           => ['<desc><x:m xmlns:x="http://ns.adobe.com/x"/></desc>', 'x:m'],
+        ];
+    }
+
+    public function testTextInTitleAndDescAccepted(): void
+    {
+        $this->assertAccepts($this->svg('<title>Logo &amp; wordmark</title><desc>&lt;style/&gt; is text here</desc><g><title>Layer</title></g>'));
     }
 
     //endregion

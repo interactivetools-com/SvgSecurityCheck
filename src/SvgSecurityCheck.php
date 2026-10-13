@@ -432,7 +432,7 @@ final class SvgSecurityCheck
         $isRoot     = true;
         $styleDepth = null;   // depth of the open <style> while its text is being collected
         $css        = '';
-        $textDepth  = null;   // depth of the open <title> or <desc>, see the CDATA case below
+        $textDepth  = null;   // depth of the open <title> or <desc>, see the element and CDATA cases below
         $textName   = '';
 
         while (count($this->errors) < self::$maxErrors && $reader->read()) {
@@ -448,6 +448,11 @@ final class SvgSecurityCheck
                             $this->fail('root-namespace-wrong', $reader->namespaceURI === '' ? 'none' : 'xmlns="' . self::excerpt($reader->namespaceURI) . '"');
                             break 2;
                         }
+                    }
+                    if ($textDepth !== null) {
+                        // an HTML parser reads elements inside <title> and <desc> as HTML, where <style/> is not
+                        // empty: the text after it would be CSS this check never saw, if the file were served as text/html
+                        $this->fail('element-in-title-or-desc', self::excerpt($reader->name));
                     }
                     $this->checkElement($reader);
                     $this->noteReferences($reader);

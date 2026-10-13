@@ -1,0 +1,5 @@
+<!-- rejected: an element inside <desc>, which an HTML parser reads as HTML: there <style/> is not empty and the text after it is CSS -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">
+  <desc><style/>svg{fill:red}</desc>
+  <rect width="10" height="10"/>
+</svg>

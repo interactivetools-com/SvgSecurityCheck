@@ -37,6 +37,7 @@ final class Violation
         'processing-instruction'        => 'Processing instructions like <?%s?> are not allowed',
         'comment-not-allowed'           => 'A comment starting with <!--%s is not allowed, HTML parsers close it there',
         'cdata-not-allowed'             => 'A CDATA section containing > is not allowed inside <%s>, HTML parsers end it there',
+        'element-in-title-or-desc'      => '<title> and <desc> may hold only text, not <%s>',
         'root-not-svg'                  => 'The root element must be <svg>, not <%s>',
         'root-namespace-wrong'          => 'The root <svg> element must declare xmlns="http://www.w3.org/2000/svg", but it has %s',
         'element-not-allowed'           => '<%s> is not allowed in uploaded SVGs',

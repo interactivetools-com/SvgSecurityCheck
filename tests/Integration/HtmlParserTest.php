@@ -70,8 +70,6 @@ class HtmlParserTest extends SvgSecurityCheckTestCase
             'xpacket markers'               => '<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?><?xpacket end="w"?>',
             'escaped markup in title'       => '<title>&lt;img src=x onerror=alert(1)&gt;</title>',
             'cdata in title without >'      => '<title><![CDATA[<img src=x onerror=alert(1)]]></title>',
-            'link inside desc'              => '<desc><a href="#x">text</a></desc>',
-            'escaped style end in title'    => '<title><style>&lt;/style&gt;&lt;img src=x onerror=alert&gt;</style></title>',
             'metadata with prefixed script' => '<x:scripted xmlns:x="http://ns.adobe.com/x">alert(1)</x:scripted>',
         ];
         foreach ($nearMiss as $name => $body) {

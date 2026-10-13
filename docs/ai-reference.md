@@ -153,6 +153,7 @@ Every code, its template, and what `detail` holds. Templates are `Violation::TEM
 | `processing-instruction`        | `Processing instructions like <?%s?> are not allowed`                                   | the instruction's target, such as `xml-stylesheet`; for an `xpacket` marker holding `>`, the target and its text                                                |
 | `comment-not-allowed`           | `A comment starting with <!--%s is not allowed, HTML parsers close it there`            | `>` or `->`                                                                                                                                                     |
 | `cdata-not-allowed`             | `A CDATA section containing > is not allowed inside <%s>, HTML parsers end it there`    | `title` or `desc`                                                                                                                                               |
+| `element-in-title-or-desc`      | `<title> and <desc> may hold only text, not <%s>`                                       | the element name as written, such as `style` or `a`                                                                                                             |
 | `root-not-svg`                  | `The root element must be <svg>, not <%s>`                                              | the root element's name as written                                                                                                                              |
 | `root-namespace-wrong`          | `The root <svg> element must declare xmlns="http://www.w3.org/2000/svg", but it has %s` | `none` or `xmlns="..."` with the namespace found                                                                                                                |
 | `element-not-allowed`           | `<%s> is not allowed in uploaded SVGs`                                                  | the element's local name, or its name as written when it has no namespace                                                                                       |
@@ -199,6 +200,9 @@ anything found earlier in the file.
 - **`cdata-not-allowed`**: a `<![CDATA[` section inside `<title>` or `<desc>` whose text
   contains `>`. HTML parsers use HTML rules inside those two elements and end the CDATA at
   the first `>`. CDATA anywhere else is fine, and so is `&gt;`. The detail is the element name.
+- **`element-in-title-or-desc`**: any element inside `<title>` or `<desc>`, at any depth.
+  HTML parsers read elements there as HTML, where `<style/>` is not empty and the text after
+  it becomes CSS this check never saw. The detail is the element name as written.
 - **`root-not-svg`**: the root element's local name is not `svg`. Stops the check.
 - **`root-namespace-wrong`**: the root `<svg>` is not in `http://www.w3.org/2000/svg`. Stops
   the check. A prefixed root (`<svg:svg xmlns:svg="...">`) gets `element-prefix-wrong`, see
@@ -534,9 +538,10 @@ unknown elements although Chrome would tolerate them.
 - **Not checked:** whether a `#id` target exists, the file extension, the MIME type, file
   size, CSS selectors and properties, and references made through CSS classes.
 - **Serving an accepted file:** it is safe to open directly with no special headers, and no
-  script runs even if it is served as `text/html`: the element prefix, `xmlns:xlink`,
-  comment, CDATA and processing-instruction rules close the places where an HTML parser
-  reads the file differently from XML. `X-Content-Type-Options: nosniff` and
+  script runs and nothing loads from outside even if it is served as `text/html`: the
+  element prefix, `xmlns:xlink`, comment, CDATA, processing-instruction and text-only
+  `<title>`/`<desc>` rules close the places where an HTML parser reads the file differently
+  from XML. `X-Content-Type-Options: nosniff` and
   `Content-Security-Policy: sandbox` add a second layer in case a rule is ever bypassed. Refuse `.svgz` and HTML uploads at the extension
   check; this library does not look at either.
 - **Not for inline SVG.** An accepted file is safe to serve as its own document or through
