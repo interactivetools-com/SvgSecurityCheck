@@ -167,7 +167,6 @@ Every code, its template, and what `detail` holds. Templates are `Violation::TEM
 | `reference-expansion-too-large` | `The references in this file %s`                                                        | `form a loop (#a -> #b -> #a)`, `expand to more than 100,000 elements`, or `need more than 100,000 records to track (ids and references)`                       |
 | `css-not-allowed`               | `CSS containing %s is not allowed`                                                      | the token, function or at-rule as matched (`\`, `image-set(`, `@import`, `url(https://example.com/a.css`) or `more than 1,000,000 bytes`                        |
 | `animation-target-not-allowed`  | `Animating the %s attribute is not allowed`                                             | the `attributeName` value                                                                                                                                       |
-| `animation-value-not-allowed`   | `The %s animation attribute contains a URL or scheme`                                   | `from`, `to`, `by`, or `values`                                                                                                                                 |
 
 Values longer than 60 characters are cut at 60 and end with `...`.
 
@@ -312,14 +311,10 @@ On `<animate>`, `<set>`, `<animateTransform>` and `<animateMotion>`:
   URLs, CSS and references after the check. `data-*`, `aria-*` and `on*` are not in the
   allowlist, so they cannot be animated either. Names are case-sensitive. The detail is the
   name as written.
-- **`from`, `to`, `by`, `values`** reject with `animation-value-not-allowed` when any
-  `;`-separated item starts (after whitespace) with a URL scheme, `letter` then letters,
-  digits, `+`, `.` or `-`, then `:`, or with `//`, which browsers read as a URL on the
-  page's own scheme. Tab, CR and LF inside an item are ignored first, as browsers ignore
-  them in a URL, so `java&#x09;script:` is `javascript:`. A literal newline never gets
-  that far: XML turns it into a space.
-  `values="0;1"` and `to="red"` pass; `to="javascript:x"`, `values="a;https://x"` and
-  `by="//x"` reject.
+- **`from`, `to`, `by`, `values`** get the same checks as any attribute value: `url()`
+  must be `#id` and CSS functions must be listed. A bare URL needs no rule of its own:
+  `href` cannot be animated, and on the attributes that can, `to="javascript:x"` or
+  `to="https://x"` loads and runs nothing.
 
 `<mpath>` is allowed; its `href` follows the href rule.
 
@@ -524,8 +519,8 @@ unknown elements although Chrome would tolerate them.
   ```php
   $json = json_encode($violation->message, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
   ```
-- **Element and attribute names are case-sensitive**; `on*` detection, URL schemes, data
-  image types and CSS tokens are case-insensitive.
+- **Element and attribute names are case-sensitive**; `on*` detection, `script` in other
+  namespaces, data image types, and CSS tokens, functions and at-rules are case-insensitive.
 - **`href` is trimmed before checking**, so `href="  #a"` passes; `href=""` rejects with
   `(empty)`.
 - **Not checked:** whether a `#id` target exists, the file extension, the MIME type, file

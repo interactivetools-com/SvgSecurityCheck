@@ -51,7 +51,6 @@ final class Violation
         'reference-expansion-too-large' => 'The references in this file %s',
         'css-not-allowed'               => 'CSS containing %s is not allowed',
         'animation-target-not-allowed'  => 'Animating the %s attribute is not allowed',
-        'animation-value-not-allowed'   => 'The %s animation attribute contains a URL or scheme',
     ];
 
     public readonly string $template;

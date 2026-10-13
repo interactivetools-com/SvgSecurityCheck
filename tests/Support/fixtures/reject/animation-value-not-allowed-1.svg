@@ -1,6 +1,0 @@
-<!-- rejected: an animation value that starts with a URL scheme -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">
-  <rect width="10" height="10">
-    <animate attributeName="fill" values="red;javascript:alert(1)" dur="1s"/>
-  </rect>
-</svg>

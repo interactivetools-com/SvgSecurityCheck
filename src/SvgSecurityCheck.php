@@ -8,7 +8,7 @@ use LibXMLError;
 use XMLReader;
 
 // import built-ins so calls resolve at compile time instead of per-call lookups; NamespacedCallsTest keeps this list exact
-use function addcslashes, array_key_last, array_keys, array_map, array_pop, array_push, array_values, base64_decode, basename, count, explode, file_get_contents, implode, in_array, is_file, is_readable, libxml_clear_errors, libxml_get_errors, libxml_use_internal_errors, ltrim, min, number_format, preg_match, preg_match_all, rawurldecode, rawurlencode, str_contains, str_replace, str_starts_with, strcasecmp, stripos, strlen, strpos, strrchr, strspn, strtolower, strval, substr, substr_compare, trim;
+use function addcslashes, array_key_last, array_keys, array_map, array_pop, array_push, array_values, base64_decode, basename, count, explode, file_get_contents, implode, in_array, is_file, is_readable, libxml_clear_errors, libxml_get_errors, libxml_use_internal_errors, min, number_format, preg_match, preg_match_all, rawurldecode, rawurlencode, str_contains, str_starts_with, strcasecmp, stripos, strlen, strpos, strrchr, strspn, strtolower, strval, substr, substr_compare, trim;
 use const LIBXML_NONET, PHP_OS_FAMILY;
 
 /**
@@ -148,7 +148,6 @@ final class SvgSecurityCheck
 
     private const ANIMATION_ELEMENTS         = ['animate', 'set', 'animateTransform', 'animateMotion'];
     private const ANIMATION_TARGETS_EXCLUDED = ['href', 'style', 'class', 'id'];   // allowed in the file but not as targets: they change URLs, CSS and references after the check
-    private const ANIMATION_VALUE_ATTRIBUTES = ['from', 'to', 'by', 'values'];
 
     /**
      * CSS functions allowed in <style>, style= and presentation attributes, lowercase. Outside
@@ -193,9 +192,6 @@ final class SvgSecurityCheck
     // url( in CSS that is not #id and not an embedded font (data:font/... or data:;base64,...), with up to 40 chars of context
     // (u so the 40 counts characters, not bytes: a cut inside a multibyte character would make detail invalid UTF-8)
     private const CSS_URL_NOT_ALLOWED = '/url\(\s*+["\']?+\s*+(?!#|data:font\/|data:;base64,)[^)]{0,40}/iu';
-
-    // a URL at the start of an animation value: a scheme (javascript:, data:, https:) or a protocol-relative //host
-    private const ANIMATION_VALUE_URL = '/^(?:[a-z][a-z0-9+.\-]*:|\/\/)/i';
 
     // Limits. Public so an application with an unusual file can raise one; the memory a hostile file can cost rises with it.
     public static int $prologLimit         = 65536;    // the root tag must start within this many bytes
@@ -610,8 +606,8 @@ final class SvgSecurityCheck
             if (preg_match(self::URL_NOT_FRAGMENT, $value)) {
                 $this->fail('url-not-fragment', self::excerpt($name));   // fill="url(https://...)" and friends
             }
-            if (in_array($element, self::ANIMATION_ELEMENTS, true)) {
-                $this->checkAnimationAttribute($attribute, $value);
+            if ($attribute === 'attributeName' && in_array($element, self::ANIMATION_ELEMENTS, true)) {
+                $this->checkAnimationTarget($value);
             }
         }
     }
@@ -905,27 +901,17 @@ final class SvgSecurityCheck
     }
 
     /**
-     * SMIL can rewrite any attribute, so animating href, style, class, or an event handler
-     * would bypass the attribute checks, and from/to/by/values must not carry a URL scheme.
+     * SMIL can rewrite an attribute after the check, so attributeName must name an allowed
+     * attribute that changes no URL, CSS or reference. The values it sets (from, to, by,
+     * values) get the same checks as any attribute value, and with href off the list, a
+     * javascript: or https: value lands somewhere that does not load or run it.
      */
-    private function checkAnimationAttribute(string $attribute, string $value): void
+    private function checkAnimationTarget(string $attributeName): void
     {
-        if ($attribute === 'attributeName') {
-            $target = trim($value);
-            $local  = substr(strrchr(":$target", ':'), 1);   // the name after the last colon; any prefix can be bound to XLink
-            if (!in_array($local, self::ATTRIBUTES, true) || in_array($local, self::ANIMATION_TARGETS_EXCLUDED, true)) {   // data-*, aria-* and on* are not in ATTRIBUTES
-                $this->fail('animation-target-not-allowed', self::excerpt($target));
-            }
-            return;
-        }
-        if (in_array($attribute, self::ANIMATION_VALUE_ATTRIBUTES, true)) {
-            foreach (explode(';', $value) as $item) {
-                $item = ltrim(str_replace(["\t", "\n", "\r"], '', $item));   // browsers drop tab, CR and LF from a URL, so java<TAB>script: is javascript:
-                if (preg_match(self::ANIMATION_VALUE_URL, $item)) {
-                    $this->fail('animation-value-not-allowed', $attribute);
-                    return;
-                }
-            }
+        $target = trim($attributeName);
+        $local  = substr(strrchr(":$target", ':'), 1);   // the name after the last colon; any prefix can be bound to XLink
+        if (!in_array($local, self::ATTRIBUTES, true) || in_array($local, self::ANIMATION_TARGETS_EXCLUDED, true)) {   // data-*, aria-* and on* are not in ATTRIBUTES
+            $this->fail('animation-target-not-allowed', self::excerpt($target));
         }
     }
 

@@ -3,17 +3,16 @@ declare(strict_types=1);
 
 namespace Itools\SvgSecurityCheck\Tests\Unit;
 
-use Itools\SvgSecurityCheck\SvgSecurityCheck;
 use Itools\SvgSecurityCheck\Tests\Support\SvgSecurityCheckTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
- * SMIL animation: which attributes an animation may target, and what from, to, by
- * and values may contain. An animation can rewrite any attribute at runtime, so
- * without these rules <set attributeName="href" to="javascript:..."> would get past
- * the attribute checks.
+ * SMIL animation: which attributes an animation may target. An animation can rewrite
+ * an attribute at runtime, so without this rule <set attributeName="href"
+ * to="javascript:..."> would get past the attribute checks. The values it sets get
+ * the same checks as any attribute value.
  *
- * Codes: animation-target-not-allowed, animation-value-not-allowed.
+ * Code: animation-target-not-allowed.
  */
 class SmilTest extends SvgSecurityCheckTestCase
 {
@@ -38,20 +37,25 @@ class SmilTest extends SvgSecurityCheckTestCase
             'animateMotion with path' => ['<rect><animateMotion path="M0,0 L10,10" dur="1s"/></rect>'],
             'animateMotion with mpath' => ['<path id="p" d="M0 0h10"/><rect><animateMotion dur="1s"><mpath href="#p"/></animateMotion></rect>'],
             'animate the path data'   => ['<path d="M0 0h10"><animate attributeName="d" to="M0 0h20" dur="1s"/></path>'],
-            'time-like value'         => ['<text><animate attributeName="x" values="12:00;13:00" dur="1s"/></text>'],
-            'exponent number'         => ['<rect><animate attributeName="width" by="1e3" dur="1s"/></rect>'],
-            'spaces around items'     => ['<rect><animate attributeName="width" values="0 ; 1 ; 2" dur="1s"/></rect>'],
-            'space is not dropped'    => ['<rect><animate attributeName="fill" to="java script:x" dur="1s"/></rect>'],
-            'one leading slash'       => ['<rect><animate attributeName="fill" to="/x" dur="1s"/></rect>'],
-            'literal newline'         => ["<rect><animate attributeName=\"fill\" to=\"java\nscript:x\" dur=\"1s\"/></rect>"],   // XML turns it into a space before anyone sees it
+            'bare url on fill'        => ['<rect><set attributeName="fill" to="https://example.com/a.png"/></rect>'],   // Chrome loads nothing: fill needs url()
+            'javascript on fill'      => ['<rect><set attributeName="fill" to="javascript:alert"/></rect>'],            // and runs nothing: only href navigates
         ];
     }
 
-    /** from/to on a shape mean nothing, so only the general CSS and url() rules apply to them there. */
-    public function testValueAttributesOnANonAnimationElementAreNotChecked(): void
+    /** Values get the general rules: url() must be #id and CSS functions must be listed. */
+    #[DataProvider('rejectedValueProvider')]
+    public function testValueGetsTheGeneralRules(string $body, string $code, string $detail): void
     {
-        $this->assertAccepts($this->svg('<rect from="javascript:alert"/>'));
-        $this->assertRejects($this->svg('<rect to="url(https://evil.example/p.svg#a)"/>'), 'url-not-fragment', 'to');
+        $this->assertRejects($this->svg($body), $code, $detail);
+    }
+
+    public static function rejectedValueProvider(): array
+    {
+        return [
+            'url() to another file' => ['<rect><set attributeName="fill" to="url(https://evil.example/p.svg#a)"/></rect>', 'url-not-fragment', 'to'],
+            'image-set()'           => ['<rect><set attributeName="mask" to="image-set(\'https://evil.example/a.png\' 1x)"/></rect>', 'css-not-allowed', 'image-set('],
+            'in a values list'      => ['<rect><animate attributeName="fill" values="red;url(//evil.example/p.svg#a)"/></rect>', 'url-not-fragment', 'values'],
+        ];
     }
 
     //endregion
@@ -105,37 +109,6 @@ class SmilTest extends SvgSecurityCheckTestCase
     public function testPrefixedHarmlessTargetIsAccepted(): void
     {
         $this->assertAccepts($this->svg('<rect><animate attributeName="q:fill" to="red"/></rect>', 'xmlns:q="http://www.w3.org/1999/xlink"'));
-    }
-
-    //endregion
-    //region Values
-
-    #[DataProvider('deniedValueProvider')]
-    public function testDeniedValue(string $body, string $attribute): void
-    {
-        $this->assertRejects($this->svg($body), 'animation-value-not-allowed', $attribute);
-    }
-
-    public static function deniedValueProvider(): array
-    {
-        return [
-            'to javascript'           => ['<rect><set attributeName="fill" to="javascript:alert(1)"/></rect>', 'to'],
-            'to, upper case, padded'  => ['<rect><set attributeName="fill" to=" JAVASCRIPT:alert(1)"/></rect>', 'to'],
-            'from https'              => ['<rect><animate attributeName="fill" from="https://evil.example/" to="red"/></rect>', 'from'],
-            'by data'                 => ['<rect><animate attributeName="fill" by="data:text/html,x"/></rect>', 'by'],
-            'values, later item'      => ['<rect><animate attributeName="fill" values="red; javascript:alert(1)"/></rect>', 'values'],
-            'values, last item'       => ['<rect><animate attributeName="fill" values="red;blue;data:x"/></rect>', 'values'],
-            'tab inside the scheme'   => ['<rect><set attributeName="fill" to="java&#x09;script:alert(1)"/></rect>', 'to'],
-            'newline inside, as ref'  => ['<rect><set attributeName="fill" to="java&#x0A;script:alert(1)"/></rect>', 'to'],
-            'protocol-relative'       => ['<rect><animate attributeName="fill" by="//evil.example/x"/></rect>', 'by'],
-            'protocol-relative later' => ['<rect><animate attributeName="fill" values="red; //evil.example/x"/></rect>', 'values'],
-        ];
-    }
-
-    public function testHrefRewriteReportsBothProblems(): void
-    {
-        $result = SvgSecurityCheck::checkString($this->svg('<a href="#a"><set attributeName="href" to="javascript:alert"/></a>'));
-        $this->assertSame(['animation-target-not-allowed', 'animation-value-not-allowed'], array_column($result->errors, 'code'));
     }
 
     //endregion
