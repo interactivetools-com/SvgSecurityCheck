@@ -2,11 +2,9 @@
 declare(strict_types=1);
 
 /**
- * Markdown table rendering shared byte-for-byte between the docs repo
- * (programming/shared-md-table.php) and SmartString
- * (.github/scripts/shared-md-table.php): the copies are identical, edit every
- * copy or none - the release checklist in open-source/repo-standards.md
- * compares them. Runs under php -n: no composer, no mbstring.
+ * Markdown table rendering. Source: programming/shared-md-table.php in the
+ * docs repo. Make any changes there, then copy the file to every repo that
+ * uses it. Runs under php -n: no composer, no mbstring.
  */
 
 /**
