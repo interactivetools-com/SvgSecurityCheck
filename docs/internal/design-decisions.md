@@ -18,6 +18,7 @@ Contents:
 - [DOCTYPE: Only the Internal Subset Rejects](#doctype-only-the-internal-subset-rejects)
 - [External Links in `<a>` Reject](#external-links-in-a-reject)
 - [CSS by Regex, Not a Tokenizer](#css-by-regex-not-a-tokenizer)
+- [No Regex Limit CI Step](#no-regex-limit-ci-step)
 - [`url()` Is Checked in Every Attribute](#url-is-checked-in-every-attribute)
 - [Embedded SVG Images Get the Full Check](#embedded-svg-images-get-the-full-check)
 - [Reference Loops and Expansion Bombs](#reference-loops-and-expansion-bombs)
@@ -174,6 +175,21 @@ browser reads as CSS. The corpus has no backslash in any of them.
   its own file, and an upload cannot load one, since `@import` and `<?xml-stylesheet?>` are
   refused. In a `<style>` element or a `style` attribute it is ignored. No current browser
   decodes UTF-7, the trick it was banned for.
+
+## No Regex Limit CI Step
+
+The shared standard asks for a megabyte test and a `pcre.jit=0` CI step when one regex
+attempt can walk a large slice of the file. None here can: every pattern that runs over
+file content is a literal alternation, a bounded repeat, or a possessive name run, so a long
+input costs one pass and never reaches `pcre.backtrack_limit`. Measured 2026-10-13 with the
+JIT off: a 900 KB name in `<style>` and a 4.5 MB name in an attribute check in under 35 ms,
+and the suite passes with `-d pcre.jit=0`.
+
+- Every regex over file content still reads `false` as a rejection, never as "no match", so
+  a future pattern that can reach the limit fails closed. PcreLimitTest lowers the limit
+  to 2 to reach each of those guards.
+- A new pattern with a repeated group or a lazy repeat over content brings the megabyte test
+  and the CI step with it, in the same change.
 
 ## `url()` Is Checked in Every Attribute
 

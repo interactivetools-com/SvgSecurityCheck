@@ -178,6 +178,9 @@ final class SvgSecurityCheck
     // quantifiers (*+ ?+) stop the regex from backtracking past the quote to dodge the # lookahead.
     private const URL_NOT_FRAGMENT = '/url\(\s*+["\']?+\s*+(?!#)/i';
 
+    // the css-not-allowed detail when a CSS regex returns false past a PCRE limit, which rejects like a match
+    private const UNSCANNABLE = 'text that could not be scanned';
+
     // CSS the allowlists cannot catch: a backslash (an escape could spell any name) and the two properties
     // old Firefox and IE used to attach code, whose value is an allowed url(#id)
     private const CSS_BANNED = '/\\\\|-moz-binding|behavior\s*+:/i';
@@ -346,7 +349,12 @@ final class SvgSecurityCheck
                 return false;
             }
         }
-        if (preg_match('/^<\?xml\s[^>]*?encoding\s*=\s*["\']([^"\']*)["\']/i', $firstBytes, $match) && strcasecmp($match[1], 'utf-8') !== 0) {
+        $hasEncoding = preg_match('/^<\?xml\s[^>]*?encoding\s*=\s*["\']([^"\']*)["\']/i', $firstBytes, $match);
+        if ($hasEncoding === false) {   // a PCRE limit was reached, so the encoding is unknown
+            $this->fail('not-utf8', 'declared in a form that could not be read');
+            return false;
+        }
+        if ($hasEncoding === 1 && strcasecmp($match[1], 'utf-8') !== 0) {
             $this->fail('not-utf8', 'declared as ' . self::excerpt($match[1]));
             return false;
         }
@@ -612,12 +620,12 @@ final class SvgSecurityCheck
             // presentation attributes are CSS values: u\72l( reads as url( to a browser, and mask="image-set(...)" loads the image
             $isCssValue = !str_starts_with($attribute, 'data-') && !str_starts_with($attribute, 'aria-');
             if ($isCssValue) {
-                if (preg_match(self::CSS_BANNED, $value, $match)) {
-                    $this->fail('css-not-allowed', $match[0]);
+                if (preg_match(self::CSS_BANNED, $value, $match) !== 0) {   // false (a PCRE limit) rejects too
+                    $this->fail('css-not-allowed', $match[0] ?? self::UNSCANNABLE);
                 }
                 $this->checkCssNames($value, self::CSS_FUNCTION, self::CSS_FUNCTIONS);
             }
-            if (preg_match(self::URL_NOT_FRAGMENT, $value)) {
+            if (preg_match(self::URL_NOT_FRAGMENT, $value) !== 0) {
                 $this->fail('url-not-fragment', self::excerpt($name));   // fill="url(https://...)" and friends
             }
             if ($attribute === 'attributeName' && in_array($element, self::ANIMATION_ELEMENTS, true)) {
@@ -708,8 +716,12 @@ final class SvgSecurityCheck
                     if (str_starts_with($value, '#') && in_array($element, self::HREF_RENDERS_TARGET, true)) {
                         $targets[] = substr($value, 1);
                     }
-                } elseif (stripos($value, 'url(') !== false && preg_match_all(self::URL_FRAGMENT, $value, $matches)) {
-                    array_push($targets, ...$matches[1]);   // fill, stroke, marker-*, mask, clip-path, filter, and style=
+                } elseif (stripos($value, 'url(') !== false) {
+                    if (preg_match_all(self::URL_FRAGMENT, $value, $matches) === false) {   // a PCRE limit was reached, so the references are unknown
+                        $this->fail('reference-expansion-too-large', 'could not be counted');
+                    } else {
+                        array_push($targets, ...$matches[1]);   // fill, stroke, marker-*, mask, clip-path, filter, and style=
+                    }
                 }
             } while ($reader->moveToNextAttribute());
             $reader->moveToElement();
@@ -887,13 +899,13 @@ final class SvgSecurityCheck
      */
     private function checkCss(string $css): void
     {
-        if (preg_match(self::CSS_BANNED, $css, $match)) {
-            $this->fail('css-not-allowed', $match[0]);
+        if (preg_match(self::CSS_BANNED, $css, $match) !== 0) {   // false (a PCRE limit) rejects too
+            $this->fail('css-not-allowed', $match[0] ?? self::UNSCANNABLE);
         }
         $this->checkCssNames($css, self::CSS_FUNCTION, self::CSS_FUNCTIONS);
         $this->checkCssNames($css, self::CSS_AT_RULE, self::CSS_AT_RULES);
-        if (preg_match(self::CSS_URL_NOT_ALLOWED, $css, $match)) {
-            $this->fail('css-not-allowed', self::excerpt($match[0]));
+        if (preg_match(self::CSS_URL_NOT_ALLOWED, $css, $match) !== 0) {
+            $this->fail('css-not-allowed', self::excerpt($match[0] ?? self::UNSCANNABLE));
         }
     }
 
@@ -904,7 +916,7 @@ final class SvgSecurityCheck
     private function checkCssNames(string $css, string $pattern, array $allowed): void
     {
         if (preg_match_all($pattern, $css, $matches) === false) {   // a PCRE limit was reached, so the names are unknown
-            $this->fail('css-not-allowed', 'text that could not be scanned');
+            $this->fail('css-not-allowed', self::UNSCANNABLE);
             return;
         }
         foreach ($matches[1] as $index => $name) {
