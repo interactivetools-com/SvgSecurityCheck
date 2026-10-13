@@ -27,9 +27,9 @@ use const LIBXML_NONET, PHP_OS_FAMILY;
  *     $result = SvgSecurityCheck::checkString($svg);   // same check on a string
  *     $rules  = SvgSecurityCheck::rules();             // the allowlists, for docs and debugging
  *
- * Every rule is an allowlist. Elements, attributes, XML namespaces, URL forms, and CSS
- * functions not on a list are rejected, so a new browser feature is closed until it is
- * added here. docs/errors.md has the fix for each code and docs/ai-reference.md every rule
+ * Every rule is an allowlist except CSS, which is scanned for a short list of tokens.
+ * Elements, attributes, XML namespaces, URL forms and animation targets not on a list are
+ * rejected, so a new browser feature is closed until it is added here. docs/errors.md has the fix for each code and docs/ai-reference.md every rule
  * and list.
  */
 final class SvgSecurityCheck
@@ -147,7 +147,7 @@ final class SvgSecurityCheck
     private const IMAGE_ELEMENTS = ['image', 'feImage'];
 
     private const ANIMATION_ELEMENTS         = ['animate', 'set', 'animateTransform', 'animateMotion'];
-    private const ANIMATION_TARGETS_DENIED   = ['href', 'style', 'class'];   // matched without any prefix, so xlink:href and q:href are both href
+    private const ANIMATION_TARGETS_EXCLUDED = ['href', 'style', 'class', 'id'];   // allowed in the file but not as targets: they change URLs, CSS and references after the check
     private const ANIMATION_VALUE_ATTRIBUTES = ['from', 'to', 'by', 'values'];
 
     //endregion
@@ -861,7 +861,7 @@ final class SvgSecurityCheck
         if ($attribute === 'attributeName') {
             $target = trim($value);
             $local  = substr(strrchr(":$target", ':'), 1);   // the name after the last colon; any prefix can be bound to XLink
-            if (in_array($local, self::ANIMATION_TARGETS_DENIED, true) || stripos($local, 'on') === 0) {
+            if (!in_array($local, self::ATTRIBUTES, true) || in_array($local, self::ANIMATION_TARGETS_EXCLUDED, true)) {   // data-*, aria-* and on* are not in ATTRIBUTES
                 $this->fail('animation-target-not-allowed', self::excerpt($target));
             }
             return;

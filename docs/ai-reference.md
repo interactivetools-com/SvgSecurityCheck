@@ -300,8 +300,11 @@ properties, `:hover`, `:visited`, `@media`, `@keyframes` and `!important` are no
 On `<animate>`, `<set>`, `<animateTransform>` and `<animateMotion>`:
 
 - **`attributeName`** (trimmed, and with any `prefix:` removed, so `xlink:href` and
-  `q:href` are both `href`) rejects with `animation-target-not-allowed` when it is `href`,
-  `style`, `class`, or starts with `on` (case-insensitive). The detail is the name as written.
+  `q:href` are both `href`) must be in the [attributes allowlist](#allowlists) and not
+  `href`, `style`, `class` or `id`, else `animation-target-not-allowed`. Those four change
+  URLs, CSS and references after the check. `data-*`, `aria-*` and `on*` are not in the
+  allowlist, so they cannot be animated either. Names are case-sensitive. The detail is the
+  name as written.
 - **`from`, `to`, `by`, `values`** reject with `animation-value-not-allowed` when any
   `;`-separated item starts (after whitespace) with a URL scheme, `letter` then letters,
   digits, `+`, `.` or `-`, then `:`, or with `//`, which browsers read as a URL on the

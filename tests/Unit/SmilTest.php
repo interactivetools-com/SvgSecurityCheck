@@ -33,6 +33,7 @@ class SmilTest extends SvgSecurityCheckTestCase
             'color values'            => ['<rect><animate attributeName="fill" from="#fff" to="rgb(0,0,0)" dur="1s"/></rect>'],
             'fragment url value'      => ['<rect><animate attributeName="fill" to="url(#g)" dur="1s"/></rect>'],
             'set'                     => ['<rect><set attributeName="fill" to="red" begin="1s"/></rect>'],
+            'viewBox'                 => ['<animate attributeName="viewBox" values="0 0 10 10;0 0 20 20" dur="1s"/>'],
             'animateTransform'        => ['<rect><animateTransform attributeName="transform" type="rotate" from="0 5 5" to="360 5 5" dur="1s"/></rect>'],
             'animateMotion with path' => ['<rect><animateMotion path="M0,0 L10,10" dur="1s"/></rect>'],
             'animateMotion with mpath' => ['<path id="p" d="M0 0h10"/><rect><animateMotion dur="1s"><mpath href="#p"/></animateMotion></rect>'],
@@ -74,6 +75,11 @@ class SmilTest extends SvgSecurityCheckTestCase
             'padded with whitespace'  => ['<rect><set attributeName=" href " to="#b"/></rect>', 'href'],
             'on animateTransform'     => ['<rect><animateTransform attributeName="href" to="#b"/></rect>', 'href'],
             'on animateMotion'        => ['<rect><animateMotion attributeName="style" to="x"/></rect>', 'style'],
+            'id'                      => ['<rect id="a"><set attributeName="id" to="b"/></rect>', 'id'],
+            'data-*'                  => ['<rect data-name="a"><set attributeName="data-name" to="b"/></rect>', 'data-name'],
+            'aria-*'                  => ['<rect><set attributeName="aria-label" to="b"/></rect>', 'aria-label'],
+            'not on the allowlist'    => ['<rect><set attributeName="mask-image" to="none"/></rect>', 'mask-image'],
+            'case matters'            => ['<rect><set attributeName="Fill" to="red"/></rect>', 'Fill'],
         ];
     }
 
