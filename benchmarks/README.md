@@ -2,8 +2,8 @@
 
 `check-speed.php` times `checkFile()` on generated files of known sizes, on a set of
 hostile files built to hang a renderer, and on the real files in `corpus/`, and prints the
-tables in [docs/performance.md](../docs/performance.md). `results.md` is the raw output of
-the run those tables come from.
+results as Markdown tables. [results.md](results.md) is the output of the latest run, which
+the main README links.
 
 Run it through `run.sh`, which turns opcache on and xdebug off and caps the memory and
 process count of everything it starts:

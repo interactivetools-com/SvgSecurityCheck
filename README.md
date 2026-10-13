@@ -28,6 +28,7 @@ Full docs ([browse on GitHub](https://github.com/interactivetools-com/SvgSecurit
 
 - [Error codes and fixes](docs/errors.md) - every message, and what to change in the file or the design tool
 - [AI reference](docs/ai-reference.md) - the complete API and every rule in one file, written for AI coding assistants
+- [Benchmarks](benchmarks/results.md) - check times for files from 1 KB to 50 MB, hostile files and 5,600 real files, next to enshrined/svg-sanitize
 - [Changelog](CHANGELOG.md)
 
 ## Quick Start

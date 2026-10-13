@@ -543,7 +543,7 @@ final class SvgSecurityCheck
     {
         $namespace = $reader->namespaceURI;
         $element   = $reader->localName;
-        $inert     = self::isInertNamespace($namespace);
+        $inert     = $namespace !== self::SVG_NS;   // past the checks below, every element not in SVG is in an inert namespace
 
         if (strcasecmp($element, 'script') === 0) {   // any namespace: <x:script> runs nothing, but "no script anywhere" is a simpler rule to rely on
             $this->fail('element-not-allowed', self::excerpt($reader->name));
@@ -557,7 +557,7 @@ final class SvgSecurityCheck
         } elseif ($namespace === '') {
             $this->fail('element-not-allowed', self::excerpt($reader->name));   // unbound prefix, or xmlns="" reset
             return;
-        } elseif (!$inert) {
+        } elseif (!self::isInertNamespace($namespace)) {
             $this->fail('namespace-not-allowed', self::excerpt($namespace));
             return;
         }
@@ -596,7 +596,7 @@ final class SvgSecurityCheck
             $this->fail('event-handler', self::excerpt($name));
             return;
         }
-        if (self::isInertNamespace($namespace)) {   // always prefixed, and the prefix is never xlink, so no parser reads it
+        if ($namespace !== '' && self::isInertNamespace($namespace)) {   // always prefixed, and the prefix is never xlink, so no parser reads it
             return;
         }
 
@@ -623,7 +623,9 @@ final class SvgSecurityCheck
                 if (preg_match(self::CSS_BANNED, $value, $match) !== 0) {   // false (a PCRE limit) rejects too
                     $this->fail('css-not-allowed', $match[0] ?? self::UNSCANNABLE);
                 }
-                $this->checkCssNames($value, self::CSS_FUNCTION, self::CSS_FUNCTIONS);
+                if (str_contains($value, '(')) {   // no ( means no function, and most values (paths, colors, numbers) have none
+                    $this->checkCssNames($value, self::CSS_FUNCTION, self::CSS_FUNCTIONS);
+                }
             }
             if (preg_match(self::URL_NOT_FRAGMENT, $value) !== 0) {
                 $this->fail('url-not-fragment', self::excerpt($name));   // fill="url(https://...)" and friends
