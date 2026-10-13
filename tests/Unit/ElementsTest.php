@@ -194,6 +194,28 @@ class ElementsTest extends SvgSecurityCheckTestCase
         );
     }
 
+    /** Served as text/html a metadata element is an unknown SVG element and Chrome applies its style, so its values are checked. */
+    #[DataProvider('inertAttributeValueProvider')]
+    public function testValuesOnAnInertElementAreChecked(string $attributes, string $code, string $detail): void
+    {
+        $this->assertRejects($this->svg("<x:thing xmlns:x=\"http://ns.adobe.com/x\" $attributes/>"), $code, $detail);
+    }
+
+    public static function inertAttributeValueProvider(): array
+    {
+        return [
+            'style with an outside url' => ['style="background:url(https://evil.example/a.png)"', 'css-not-allowed', 'url(https://evil.example/a.png'],
+            'unlisted css function'     => ['style="mask-image:image-set(\'a.png\' 1x)"', 'css-not-allowed', 'image-set('],
+            'fill with an outside url'  => ['fill="url(https://evil.example/p.svg#a)"', 'url-not-fragment', 'fill'],
+            'href to another file'      => ['href="https://evil.example/"', 'href-not-allowed', 'https://evil.example/'],
+        ];
+    }
+
+    public function testInertElementAttributeNamesAreNotChecked(): void
+    {
+        $this->assertAccepts($this->svg('<x:thing xmlns:x="http://ns.adobe.com/x" pagecolor="#ffffff" showgrid="false" style="fill:red"/>'));
+    }
+
     public function testSvgElementsInsideAnInertElementAreStillChecked(): void
     {
         $this->assertRejects(

@@ -12,7 +12,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
  * xlink: attributes, xmlns declarations, event handlers, and attributes in the
  * inert design-tool namespaces.
  *
- * Codes: event-handler, attribute-not-allowed. Values (href, style, url()) are
+ * Codes: event-handler, attribute-not-allowed, xlink-prefix-wrong. Values (href, style, url()) are
  * covered in UrlsTest and CssTest.
  */
 class AttributesTest extends SvgSecurityCheckTestCase
@@ -72,6 +72,23 @@ class AttributesTest extends SvgSecurityCheckTestCase
             'prefix that starts with on'   => ['xmlns:onx="http://example.com/"'],
             'prefix that is exactly on'    => ['xmlns:on="http://example.com/"'],
             'repeated default declaration' => ['xmlns="http://www.w3.org/2000/svg"'],
+        ];
+    }
+
+    /** HTML parsers read xlink:href by its spelling, so the xlink prefix may only mean XLink. */
+    #[DataProvider('wrongXlinkPrefixProvider')]
+    public function testXlinkPrefixBoundElsewhereRejected(string $body, string $rootAttributes): void
+    {
+        $this->assertRejects($this->svg($body, $rootAttributes), 'xlink-prefix-wrong', 'http://ns.adobe.com/x');
+    }
+
+    public static function wrongXlinkPrefixProvider(): array
+    {
+        $adobe = 'xmlns:xlink="http://ns.adobe.com/x"';
+        return [
+            'on the root'           => ['<a xlink:href="javascript:alert(1)"><rect/></a>', $adobe],
+            'on the element'        => ["<image $adobe xlink:href=\"https://evil.example/a.png\"/>", ''],
+            'on a metadata element' => ["<metadata><x:meta xmlns:x=\"http://ns.adobe.com/x\" $adobe/></metadata>", ''],
         ];
     }
 

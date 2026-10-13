@@ -160,6 +160,7 @@ Every code, its template, and what `detail` holds. Templates are `Violation::TEM
 | `element-prefix-wrong`          | `<%s> has the wrong prefix: SVG elements take none, metadata elements need one`         | the element name as written, such as `svg:rect` or `p`                                                                                                          |
 | `event-handler`                 | `%s= event handler attributes are not allowed`                                          | the attribute name as written, such as `onload` or `xlink:onload`                                                                                               |
 | `attribute-not-allowed`         | `The %s attribute is not allowed`                                                       | the attribute name as written, such as `tabindex` or `xml:base`                                                                                                 |
+| `xlink-prefix-wrong`            | `The xlink: prefix must be bound to http://www.w3.org/1999/xlink, not %s`               | the namespace the prefix is bound to                                                                                                                            |
 | `href-not-allowed`              | `href must reference an element in the same file (#id), not %s`                         | the value, or `(empty)`                                                                                                                                         |
 | `image-href-not-allowed`        | `Image href must be #id or an embedded PNG, JPEG, GIF, WebP or SVG data: URL, not %s`   | the value, or `(empty)`                                                                                                                                         |
 | `embedded-svg-not-allowed`      | `An embedded SVG image was rejected: %s`                                                | the inner file's message, `the data: URL is not valid base64`, or `SVG images nested more than 3 levels deep`                                                   |
@@ -214,8 +215,10 @@ by its namespace:
   The rejected element's attributes are not checked; its children are.
 - **No namespace** (an unbound prefix, or inside `xmlns=""`): `element-not-allowed` with the
   name as written.
-- **Inert namespace** (see the list): the element and all its attributes pass without
-  inspection, except that an `on*` attribute still rejects.
+- **Inert namespace** (see the list): the element passes, and its attribute names are not
+  checked. Their values are, as described under Rules: Attributes, and `on*` still rejects.
+  Served as `text/html`, a metadata element is an unknown SVG element and Chrome applies
+  its `style`.
 - **Any other namespace**: `namespace-not-allowed` with the URI. This covers XHTML, MathML,
   XInclude, XML Events, and anything unknown.
 
@@ -231,16 +234,20 @@ elements), `tref`, `cursor`, `animateColor`, `discard`. A nested `<svg>` is fine
 
 ## Rules: Attributes
 
-For every attribute on an element in the SVG namespace, in this order:
+For every attribute on an element in the SVG namespace or an inert namespace, in this order:
 
-1. `xmlns` and `xmlns:*` declarations always pass.
+1. `xmlns` and `xmlns:*` declarations pass, except `xmlns:xlink` bound to anything other
+   than `http://www.w3.org/1999/xlink`, which rejects with `xlink-prefix-wrong`. HTML
+   parsers read `xlink:href` by its spelling, so a rebound prefix would turn an unchecked
+   attribute into a working link if the file were served as `text/html`.
 2. A name whose local part starts with `on` (case-insensitive, any namespace, any element
    including inert ones) rejects with `event-handler`. No allowed attribute starts with `on`.
-3. An attribute in an inert namespace passes.
-4. An unprefixed name must be in the [attributes allowlist](#allowlists) or start with
-   `data-` or `aria-`. A prefixed name must be one of `xml:lang`, `xml:space`, `xlink:href`,
-   `xlink:title`. Anything else rejects with `attribute-not-allowed`. Names are
-   case-sensitive.
+3. An attribute in an inert namespace passes. It always has a prefix, and step 1 keeps that
+   prefix from being `xlink`, so no parser reads it.
+4. On an SVG element, an unprefixed name must be in the [attributes allowlist](#allowlists)
+   or start with `data-` or `aria-`. A prefixed name must be one of `xml:lang`, `xml:space`,
+   `xlink:href`, `xlink:title`. Anything else rejects with `attribute-not-allowed`. Names
+   are case-sensitive. On an inert element this step is skipped; step 5 still runs.
 5. The value is then checked: `href` and `xlink:href` per [URLs](#rules-urls), `style` per
    [CSS](#rules-css), every other value for `url(` per [URLs](#rules-urls), and on animation
    elements per [Animation](#rules-animation).
@@ -396,9 +403,10 @@ unicode-bidi vector-effect visibility white-space word-spacing writing-mode
 | `http://www.w3.org/1999/xlink`         | `href`, `title` |
 <!-- /rules:namespacedAttributes -->
 
-**`inertNamespaces`**: elements and attributes in these pass without inspection (except
-`on*`, a `script` element, and an element written without a prefix). Matched by the start of
-the URI, so every namespace under `http://ns.adobe.com/` or `http://purl.org/dc/` counts.
+**`inertNamespaces`**: elements and attributes in these pass without a name check (except
+`on*`, a `script` element, and an element written without a prefix); the attribute values
+of an inert element are still checked. Matched by the start of the URI, so every namespace
+under `http://ns.adobe.com/` or `http://purl.org/dc/` counts.
 
 <!-- rules:inertNamespaces -->
 ```text
@@ -526,9 +534,9 @@ unknown elements although Chrome would tolerate them.
 - **Not checked:** whether a `#id` target exists, the file extension, the MIME type, file
   size, CSS selectors and properties, and references made through CSS classes.
 - **Serving an accepted file:** it is safe to open directly with no special headers, and no
-  script runs even if it is served as `text/html`: the prefix, comment, CDATA and
-  processing-instruction rules close the places where an HTML parser reads the file
-  differently from XML. `X-Content-Type-Options: nosniff` and
+  script runs even if it is served as `text/html`: the element prefix, `xmlns:xlink`,
+  comment, CDATA and processing-instruction rules close the places where an HTML parser
+  reads the file differently from XML. `X-Content-Type-Options: nosniff` and
   `Content-Security-Policy: sandbox` add a second layer in case a rule is ever bypassed. Refuse `.svgz` and HTML uploads at the extension
   check; this library does not look at either.
 - **Not for inline SVG.** An accepted file is safe to serve as its own document or through

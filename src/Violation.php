@@ -44,6 +44,7 @@ final class Violation
         'element-prefix-wrong'          => '<%s> has the wrong prefix: SVG elements take none, metadata elements need one',
         'event-handler'                 => '%s= event handler attributes are not allowed',
         'attribute-not-allowed'         => 'The %s attribute is not allowed',
+        'xlink-prefix-wrong'            => 'The xlink: prefix must be bound to http://www.w3.org/1999/xlink, not %s',
         'href-not-allowed'              => 'href must reference an element in the same file (#id), not %s',
         'image-href-not-allowed'        => 'Image href must be #id or an embedded PNG, JPEG, GIF, WebP or SVG data: URL, not %s',
         'embedded-svg-not-allowed'      => 'An embedded SVG image was rejected: %s',

@@ -572,22 +572,31 @@ final class SvgSecurityCheck
         $value     = $reader->value;
 
         if ($namespace === self::XMLNS_NS) {
+            // an HTML parser reads xlink:href by its spelling, so xmlns:xlink="http://ns.adobe.com/x" would
+            // turn an unchecked metadata attribute into a working link if the file were served as text/html
+            if ($attribute === 'xlink' && $value !== self::XLINK_NS) {
+                $this->fail('xlink-prefix-wrong', self::excerpt($value));
+            }
             return;
         }
         if (stripos($attribute, 'on') === 0) {
             $this->fail('event-handler', self::excerpt($name));
             return;
         }
-        if ($inertElement || self::isInertNamespace($namespace)) {
+        if (self::isInertNamespace($namespace)) {   // always prefixed, and the prefix is never xlink, so no parser reads it
             return;
         }
 
-        $allowed = $namespace === ''
-            ? in_array($attribute, self::ATTRIBUTES, true) || str_starts_with($attribute, 'data-') || str_starts_with($attribute, 'aria-')
-            : in_array($attribute, self::NAMESPACED_ATTRIBUTES[$namespace] ?? [], true);
-        if (!$allowed) {
-            $this->fail('attribute-not-allowed', self::excerpt($name));
-            return;
+        // a metadata element's own attributes are on no list, but their values get the checks below:
+        // served as text/html it is an unknown SVG element, and Chrome applies its style
+        if (!$inertElement) {
+            $allowed = $namespace === ''
+                ? in_array($attribute, self::ATTRIBUTES, true) || str_starts_with($attribute, 'data-') || str_starts_with($attribute, 'aria-')
+                : in_array($attribute, self::NAMESPACED_ATTRIBUTES[$namespace] ?? [], true);
+            if (!$allowed) {
+                $this->fail('attribute-not-allowed', self::excerpt($name));
+                return;
+            }
         }
 
         if ($attribute === 'href') {
