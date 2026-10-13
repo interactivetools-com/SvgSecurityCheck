@@ -9,16 +9,27 @@ training data, so trust that file over habit.
 
 SvgSecurityCheck checks an uploaded SVG file and rejects it if it could run script, load an outside
 resource, or hang a renderer. Browsers block the same things when an SVG is shown through an
-`<img>` tag, but not when the file is opened on its own; SvgSecurityCheck checks the file, so it is
-safe either way. It never rewrites the file.
+`<img>` tag, but not when the file is opened on its own; SvgSecurityCheck checks the file, so the
+file is safe either way. The rules are tested against real exports from Illustrator, Inkscape,
+Figma, Affinity Designer, Sketch and CorelDRAW, and checking a file takes less time than receiving
+it ([benchmarks](benchmarks/results.md)).
 
 ## Why Reject Instead of Clean
 
-A sanitizer strips what it does not like and hands back a changed file, and a logo that renders
-differently from what the designer exported is a support ticket nobody can explain. A rejection
-with a reason costs a re-export; a cleaned file that still holds something the filter did not
-know about costs an XSS. Every rule here is an allowlist except the CSS check, so a new
-element or attribute is rejected until someone adds it.
+A sanitizer hands back a changed file, and a logo that renders differently from what the
+designer exported is a support ticket nobody can explain. SvgSecurityCheck never rewrites the
+file: a rejection with a reason costs a re-export, and a cleaned file that still holds something
+the filter did not know about costs an XSS. Elements, attributes, namespaces and URL forms are
+checked against allowlists, so a new one is rejected until it is added. CSS is the exception: it
+is checked for a short list of banned tokens.
+
+## Documentation
+
+Full docs ([browse on GitHub](https://github.com/interactivetools-com/SvgSecurityCheck)):
+
+- [Error codes and fixes](docs/errors.md) - every message, and what to change in the file or the design tool
+- [AI reference](docs/ai-reference.md) - the complete API and every rule in one file, written for AI coding assistants
+- [Changelog](CHANGELOG.md)
 
 ## Quick Start
 
@@ -41,10 +52,10 @@ if (!$result->ok) {
 }
 move_uploaded_file($_FILES['logo']['tmp_name'], 'uploads/logo.svg');
 
-// logo.php: serve it with the headers browsers need
+// logo.php: serve it as an image; the last two headers are a second layer of protection
 header('Content-Type: image/svg+xml');
 header('X-Content-Type-Options: nosniff');    // never guess another type from the contents
-header('Content-Security-Policy: sandbox');   // no script and no cookies, even if a rule is ever bypassed
+header('Content-Security-Policy: sandbox');   // no script and no cookies
 readfile('uploads/logo.svg');
 ```
 
@@ -64,53 +75,36 @@ SvgSecurityCheck::rules();             // the allowlists, for reading; the rules
 
 ## What It Blocks
 
-- **Script and event handlers.** `<script>`, every `on*` attribute, `javascript:` URLs and
+- **Script.** The `<script>` element, every `on*` attribute, `javascript:` URLs and
   `<foreignObject>`: a browser runs them the moment the file is opened directly.
-- **Anything that loads from outside the file.** Every `href` and `url()` must point at `#id`
-  or an embedded `data:` image or font: an outside load tells another server who opened the
-  file, and Chrome refuses it in `<img>` mode anyway.
-- **DTD entity declarations.** An entity can expand to markup no other rule sees, or to
-  gigabytes of text.
-- **Reference loops and expansion bombs.** A few dozen `<use>` or pattern references can
-  render billions of elements; browsers cap that, server-side rasterizers hang.
-- **XML an HTML parser reads differently.** A `<!-->` comment, or CDATA holding `>` inside
-  `<title>` or `<desc>`, ends early in an HTML parser, and what follows is live markup if the
-  file is ever served as `text/html`.
+- **Outside resources.** `href` must be `#id`, or an embedded `data:` image on `<image>` and
+  `<feImage>`. `url()` must be `#id`, or an embedded font in CSS. CSS `@import`, `image()`,
+  `image-set()` and `<?xml-stylesheet?>` are rejected. An outside load lets another server
+  log who opened the file.
+- **Parser and renderer hangs.** DTD entity declarations are rejected: an entity can expand to
+  markup no other rule sees, or to gigabytes of text. So are reference loops, and `<use>` or
+  pattern chains where a few dozen references render billions of elements, which browsers cap
+  and server-side rasterizers do not.
 
 ## What It Does Not Check
 
-- **File size.** The file is streamed, so a huge upload passes in a few MB of memory. Cap the
-  size at upload time.
+- **File size.** The file is streamed, so a huge upload is checked in a few MB of memory. Cap
+  the size at upload time.
 - **Extension and MIME type.** Only the bytes are read. Refuse `.svgz`, `.html` and `.xml`
   uploads yourself.
-- **Whether the picture is sensible.** Blank, enormous, offensive, or another site's logo all
-  pass.
 - **Renderer bugs.** An accepted file is still parsed by libxml2, a browser, or ImageMagick.
   Keep the rasterizer patched.
-- **SVG pasted inline into HTML.** That makes the markup part of the page. Sanitize on output
-  with DOMPurify instead.
-- **Files served with the wrong headers.** Served as `text/html`, or with the type left for
-  the browser to guess, any SVG is a page. Send the headers in the quick start.
+- **Files served as `text/html`.** A passing file is safe as `image/svg+xml`, with or without
+  the two extra headers. Served as `text/html`, or with no `Content-Type`, it is parsed as a
+  page.
 
 ## When You Might Not Want SvgSecurityCheck
 
 - **You must accept SVG from the public and cannot ask for a re-export.** Use a sanitizer such
   as [enshrined/svg-sanitize](https://github.com/darylldoyle/svg-sanitizer) and re-check its
   output with SvgSecurityCheck.
-- **You put SVG source inline in HTML pages.** That is a different threat model: the page's
-  origin and the page's scripts. Sanitize on output with DOMPurify.
-
-A check costs less than receiving the upload did; the measurements are in
-[benchmarks/results.md](benchmarks/results.md). The rules are tested against real exports from
-Illustrator, Inkscape, Figma, Affinity Designer, Sketch and CorelDRAW.
-
-## Documentation
-
-Full docs ([browse on GitHub](https://github.com/interactivetools-com/SvgSecurityCheck)):
-
-- [Error codes and fixes](docs/errors.md) - every message, and what to change in the file or the design tool
-- [AI reference](docs/ai-reference.md) - the complete API and every rule in one file, written for AI coding assistants
-- [Changelog](CHANGELOG.md)
+- **You put SVG source inline in HTML pages.** Inline SVG runs with the page's origin and next
+  to its scripts, so sanitize on output with DOMPurify.
 
 ## Related Libraries
 
