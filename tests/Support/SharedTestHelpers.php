@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Itools\SvgValidator\Tests\Support;
+namespace Itools\SvgSecurityCheck\Tests\Support;
 
 /**
  * Test helpers shared byte-for-byte across our libraries: each carries a

@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
 
-namespace Itools\SvgValidator;
+namespace Itools\SvgSecurityCheck;
 
 /**
- * What SvgValidator::checkFile() and checkString() return.
+ * What SvgSecurityCheck::checkFile() and checkString() return.
  *
- *     $result = SvgValidator::checkFile($path);
+ *     $result = SvgSecurityCheck::checkFile($path);
  *     if ($result->ok) {
  *         // store the file
  *     }

@@ -1,14 +1,14 @@
 {
-    "name": "itools/svgvalidator",
+    "name": "itools/svgsecuritycheck",
     "description": "Rejects uploaded SVG files that could run script, load external resources, or hang a renderer: an allowlist validator matching what browsers permit for SVG in an <img> tag",
     "keywords": ["php", "svg", "xml", "upload", "file-upload", "image-upload", "upload-validation", "validator", "validation", "svg-validator", "allowlist", "security", "xss", "svg-sanitizer", "sanitize", "xmlreader", "libxml"],
     "type": "library",
-    "homepage": "https://github.com/interactivetools-com/SvgValidator",
+    "homepage": "https://github.com/interactivetools-com/SvgSecurityCheck",
     "license": "MIT",
     "readme": "README.md",
     "support": {
-        "issues": "https://github.com/interactivetools-com/SvgValidator/issues",
-        "source": "https://github.com/interactivetools-com/SvgValidator"
+        "issues": "https://github.com/interactivetools-com/SvgSecurityCheck/issues",
+        "source": "https://github.com/interactivetools-com/SvgSecurityCheck"
     },
     "authors": [
         {
@@ -18,12 +18,12 @@
     ],
     "autoload": {
         "psr-4": {
-            "Itools\\SvgValidator\\": "src/"
+            "Itools\\SvgSecurityCheck\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Itools\\SvgValidator\\Tests\\": "tests/",
+            "Itools\\SvgSecurityCheck\\Tests\\": "tests/",
             "Itools\\Standards\\": "tests/Integration/"
         }
     },

@@ -1,15 +1,15 @@
 <!--
-AI ASSISTANTS: Before writing code that uses SvgValidator, read docs/ai-reference.md. It covers
+AI ASSISTANTS: Before writing code that uses SvgSecurityCheck, read docs/ai-reference.md. It covers
 the complete API and every rejection rule in one file and matches this installed version.
-SvgValidator rejects files instead of cleaning them, which differs from the SVG sanitizers in
+SvgSecurityCheck rejects files instead of cleaning them, which differs from the SVG sanitizers in
 training data, so trust that file over habit.
 -->
 
-# SvgValidator: Reject SVG Uploads That Could Run Script
+# SvgSecurityCheck: Reject SVG Uploads That Could Run Script
 
-SvgValidator checks an uploaded SVG file and rejects it if it could run script, load an outside
+SvgSecurityCheck checks an uploaded SVG file and rejects it if it could run script, load an outside
 resource, or hang a renderer. Browsers block the same things when an SVG is shown through an
-`<img>` tag, but not when the file is opened on its own; SvgValidator checks the file, so it is
+`<img>` tag, but not when the file is opened on its own; SvgSecurityCheck checks the file, so it is
 safe either way. It never rewrites the file.
 
 ## Why Reject Instead of Clean
@@ -25,14 +25,14 @@ element or attribute is rejected until someone adds it.
 Requires PHP 8.1+ with `ext-xmlreader` and `ext-libxml` (both enabled by default).
 
 ```bash
-composer require itools/svgvalidator
+composer require itools/svgsecuritycheck
 ```
 
 ```php
-use Itools\SvgValidator\SvgValidator;
+use Itools\SvgSecurityCheck\SvgSecurityCheck;
 
 // upload.php: check the file, then store the original bytes
-$result = SvgValidator::checkFile($_FILES['logo']['tmp_name']);   // nothing throws: a missing path is a rejection too
+$result = SvgSecurityCheck::checkFile($_FILES['logo']['tmp_name']);   // nothing throws: a missing path is a rejection too
 if (!$result->ok) {
     foreach ($result->errors as $violation) {
         echo htmlspecialchars($violation->message), "<br>";   // <script> is not allowed in uploaded SVGs
@@ -52,14 +52,14 @@ If Apache or nginx serves the upload folder directly, set the same two extra hea
 `.svg` files. The rest of the API:
 
 ```php
-$result->ok;                       // true when nothing was found
-$result->errors;                   // Violation[], one per distinct problem, in file order
-$violation->code;                  // 'element-not-allowed', stable across releases, so switch on it
-$violation->detail;                // 'script', text from the file, so encode it before output
-$violation->message;               // '<script> is not allowed in uploaded SVGs'
-$violation->template;              // '<%s> is not allowed in uploaded SVGs', for translation with Violation::TEMPLATES
-SvgValidator::checkString($svg);   // the same check on SVG source in a string
-SvgValidator::rules();             // the allowlists, for reading; the rules have no options
+$result->ok;                           // true when nothing was found
+$result->errors;                       // Violation[], one per distinct problem, in file order
+$violation->code;                      // 'element-not-allowed', stable across releases, so switch on it
+$violation->detail;                    // 'script', text from the file, so encode it before output
+$violation->message;                   // '<script> is not allowed in uploaded SVGs'
+$violation->template;                  // '<%s> is not allowed in uploaded SVGs', for translation with Violation::TEMPLATES
+SvgSecurityCheck::checkString($svg);   // the same check on SVG source in a string
+SvgSecurityCheck::rules();             // the allowlists, for reading; the rules have no options
 ```
 
 ## What It Blocks
@@ -92,11 +92,11 @@ SvgValidator::rules();             // the allowlists, for reading; the rules hav
 - **Files served with the wrong headers.** Served as `text/html`, or with the type left for
   the browser to guess, any SVG is a page. Send the headers in the quick start.
 
-## When You Might Not Want SvgValidator
+## When You Might Not Want SvgSecurityCheck
 
 - **You must accept SVG from the public and cannot ask for a re-export.** Use a sanitizer such
   as [enshrined/svg-sanitize](https://github.com/darylldoyle/svg-sanitizer) and re-check its
-  output with SvgValidator.
+  output with SvgSecurityCheck.
 - **You put SVG source inline in HTML pages.** That is a different threat model: the page's
   origin and the page's scripts. Sanitize on output with DOMPurify.
 
@@ -106,7 +106,7 @@ Illustrator, Inkscape, Figma, Affinity Designer, Sketch and CorelDRAW.
 
 ## Documentation
 
-Full docs ([browse on GitHub](https://github.com/interactivetools-com/SvgValidator)):
+Full docs ([browse on GitHub](https://github.com/interactivetools-com/SvgSecurityCheck)):
 
 - [Error codes and fixes](docs/errors.md) - every message, and what to change in the file or the design tool
 - [AI reference](docs/ai-reference.md) - the complete API and every rule in one file, written for AI coding assistants
@@ -114,7 +114,7 @@ Full docs ([browse on GitHub](https://github.com/interactivetools-com/SvgValidat
 
 ## Related Libraries
 
-- [HtmlValidator](https://github.com/interactivetools-com/HtmlValidator) - the same check for HTML from an editor, a form or an import: reject, never rewrite.
+- [HtmlSecurityCheck](https://github.com/interactivetools-com/HtmlSecurityCheck) - the same check for HTML from an editor, a form or an import: reject, never rewrite.
 - [ZenDB](https://github.com/interactivetools-com/ZenDB) - injection-proof PHP/MySQL database layer with automatic XSS-safe output.
 - [SmartArray](https://github.com/interactivetools-com/SmartArray) - database rows as chainable collections, with fields that HTML-encode themselves on output.
 - [SmartString](https://github.com/interactivetools-com/SmartString) - PHP strings that HTML-encode themselves on echo, interpolation, and concatenation.

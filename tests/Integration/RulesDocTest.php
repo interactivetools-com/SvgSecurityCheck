@@ -1,16 +1,16 @@
 <?php
 declare(strict_types=1);
 
-namespace Itools\SvgValidator\Tests\Integration;
+namespace Itools\SvgSecurityCheck\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
 
-use function Itools\SvgValidator\Tools\RulesDoc\render;
+use function Itools\SvgSecurityCheck\Tools\RulesDoc\render;
 
 require_once __DIR__ . '/../../tools/rules-doc.php';   // loaded here, not in setUpBeforeClass(), because the data provider runs first
 
 /**
- * The allowlist blocks in docs/ai-reference.md are generated from SvgValidator::rules() by
+ * The allowlist blocks in docs/ai-reference.md are generated from SvgSecurityCheck::rules() by
  * tools/rules-doc.php. This test regenerates them and fails when the page on disk differs,
  * so a change to a list in src/ cannot ship without the docs.
  */
@@ -21,7 +21,7 @@ class RulesDocTest extends TestCase
     /** @return iterable<string, string[]> */
     public static function pageProvider(): iterable
     {
-        foreach (\Itools\SvgValidator\Tools\RulesDoc\PAGES as $page) {
+        foreach (\Itools\SvgSecurityCheck\Tools\RulesDoc\PAGES as $page) {
             yield $page => [$page];
         }
     }
@@ -37,7 +37,7 @@ class RulesDocTest extends TestCase
     public function testEveryListHasABlock(string $page): void
     {
         $markdown = file_get_contents(self::ROOT . "/$page");
-        foreach (array_keys(\Itools\SvgValidator\SvgValidator::rules()) as $name) {
+        foreach (array_keys(\Itools\SvgSecurityCheck\SvgSecurityCheck::rules()) as $name) {
             $this->assertStringContainsString("<!-- rules:$name -->", $markdown, "$page has no block for rules()['$name']");
         }
     }

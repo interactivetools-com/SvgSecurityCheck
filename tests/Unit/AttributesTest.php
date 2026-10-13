@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace Itools\SvgValidator\Tests\Unit;
+namespace Itools\SvgSecurityCheck\Tests\Unit;
 
-use Itools\SvgValidator\SvgValidator;
-use Itools\SvgValidator\Tests\Support\SvgValidatorTestCase;
+use Itools\SvgSecurityCheck\SvgSecurityCheck;
+use Itools\SvgSecurityCheck\Tests\Support\SvgSecurityCheckTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
@@ -15,7 +15,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
  * Codes: event-handler, attribute-not-allowed. Values (href, style, url()) are
  * covered in UrlsTest and CssTest.
  */
-class AttributesTest extends SvgValidatorTestCase
+class AttributesTest extends SvgSecurityCheckTestCase
 {
     private const XLINK = 'xmlns:xlink="http://www.w3.org/1999/xlink"';
 
@@ -31,7 +31,7 @@ class AttributesTest extends SvgValidatorTestCase
     public static function allowedAttributeProvider(): array
     {
         $cases = [];
-        foreach (SvgValidator::rules()['attributes'] as $attribute) {
+        foreach (SvgSecurityCheck::rules()['attributes'] as $attribute) {
             $cases[$attribute] = [$attribute];
         }
         return $cases;
@@ -142,7 +142,7 @@ class AttributesTest extends SvgValidatorTestCase
 
     public function testEveryBadAttributeIsReported(): void
     {
-        $result = SvgValidator::checkString($this->svg('<rect onclick="x" tabindex="0" foo="1" fill="red"/>'));
+        $result = SvgSecurityCheck::checkString($this->svg('<rect onclick="x" tabindex="0" foo="1" fill="red"/>'));
         $this->assertSame(['event-handler', 'attribute-not-allowed', 'attribute-not-allowed'], array_column($result->errors, 'code'));
         $this->assertSame(['onclick', 'tabindex', 'foo'], array_column($result->errors, 'detail'));
     }

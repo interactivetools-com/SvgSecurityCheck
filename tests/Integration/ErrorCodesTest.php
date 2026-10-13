@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace Itools\SvgValidator\Tests\Integration;
+namespace Itools\SvgSecurityCheck\Tests\Integration;
 
-use Itools\SvgValidator\Violation;
+use Itools\SvgSecurityCheck\Violation;
 use PHPUnit\Framework\TestCase;
 
 /**

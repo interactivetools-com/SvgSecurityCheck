@@ -1,12 +1,12 @@
-# SvgValidator AI Reference
+# SvgSecurityCheck AI Reference
 
 This is a consolidated reference for AI coding assistants: the complete API and every
-rejection rule in one file, covering SvgValidator 1.0. For human-friendly docs, see the
-[README](https://github.com/interactivetools-com/SvgValidator).
+rejection rule in one file, covering SvgSecurityCheck 1.0. For human-friendly docs, see the
+[README](https://github.com/interactivetools-com/SvgSecurityCheck).
 
 Contents:
 
-- [What SvgValidator Is](#what-svgvalidator-is)
+- [What SvgSecurityCheck Is](#what-svgsecuritycheck-is)
 - [API](#api) - checkFile(), checkString(), rules(), Result, Violation
 - [Usage Pattern](#usage-pattern)
 - [Error Codes](#error-codes)
@@ -24,12 +24,12 @@ Contents:
 
 ---
 
-## What SvgValidator Is
+## What SvgSecurityCheck Is
 
-SvgValidator checks an uploaded SVG file and rejects it if it could run script, load anything
+SvgSecurityCheck checks an uploaded SVG file and rejects it if it could run script, load anything
 from outside itself, or hang a renderer, **with a list of reasons**. Chrome blocks the same
 things when an SVG is shown through an `<img>` tag, but not when the file is opened on its
-own; SvgValidator checks the file, so it is safe either way. The file is **never modified**:
+own; SvgSecurityCheck checks the file, so it is safe either way. The file is **never modified**:
 there is no cleaned output, and the caller stores the original bytes or refuses the upload.
 
 Every rule is an allowlist, except CSS, which is scanned for a short list of tokens.
@@ -38,9 +38,9 @@ rejected. The rules have no options: every install checks the same way. The size
 are public static properties, see [Limits](#limits).
 
 ```php
-use Itools\SvgValidator\SvgValidator;
+use Itools\SvgSecurityCheck\SvgSecurityCheck;
 
-$result = SvgValidator::checkFile($_FILES['logo']['tmp_name']);
+$result = SvgSecurityCheck::checkFile($_FILES['logo']['tmp_name']);
 $result->ok;       // true when the file passed
 $result->errors;   // Violation[] - empty when ok, otherwise one per distinct problem
 ```
@@ -49,13 +49,13 @@ Requirements: PHP 8.1+, `ext-xmlreader`, `ext-libxml`. No other dependencies.
 
 ## API
 
-Three final classes in the `Itools\SvgValidator` namespace. Nothing throws for a bad file:
+Three final classes in the `Itools\SvgSecurityCheck` namespace. Nothing throws for a bad file:
 a hostile or broken upload is expected input and comes back as a rejected `Result`.
 
 ```php
-SvgValidator::checkFile(string $path): Result     // streams the file; memory does not grow with file size
-SvgValidator::checkString(string $svg): Result    // same check on SVG source in a string
-SvgValidator::rules(): array                      // the allowlists, for documentation and debugging
+SvgSecurityCheck::checkFile(string $path): Result     // streams the file; memory does not grow with file size
+SvgSecurityCheck::checkString(string $svg): Result    // same check on SVG source in a string
+SvgSecurityCheck::rules(): array                      // the allowlists, for documentation and debugging
 ```
 
 `checkFile()` and `checkString()` give the same result for the same bytes. `checkFile()` on
@@ -109,10 +109,10 @@ them all up front.
 ## Usage Pattern
 
 ```php
-use Itools\SvgValidator\SvgValidator;
+use Itools\SvgSecurityCheck\SvgSecurityCheck;
 
 $upload = $_FILES['logo'];
-$result = SvgValidator::checkFile($upload['tmp_name']);
+$result = SvgSecurityCheck::checkFile($upload['tmp_name']);
 
 if (!$result->ok) {
     foreach ($result->errors as $violation) {
@@ -123,15 +123,15 @@ if (!$result->ok) {
 move_uploaded_file($upload['tmp_name'], "/var/www/uploads/logo.svg");   // the original bytes, unchanged
 ```
 
-SVG sanitizers return a cleaned string to store. SvgValidator does not; store the original.
+SVG sanitizers return a cleaned string to store. SvgSecurityCheck does not; store the original.
 
 ```php
 // WRONG - checkString() returns a Result, not a cleaned SVG
-$clean = SvgValidator::checkString($svg);
+$clean = SvgSecurityCheck::checkString($svg);
 file_put_contents($path, $clean);
 
 // RIGHT - check, then store the original bytes only when ok
-if (SvgValidator::checkString($svg)->ok) {
+if (SvgSecurityCheck::checkString($svg)->ok) {
     file_put_contents($path, $svg);
 }
 ```
@@ -422,8 +422,8 @@ xpacket
 
 ## Limits
 
-The SvgValidator limits are public static properties, set before the check
-(`SvgValidator::$maxExpandedElements = 250000;`). The memory a hostile file can cost rises
+The SvgSecurityCheck limits are public static properties, set before the check
+(`SvgSecurityCheck::$maxExpandedElements = 250000;`). The memory a hostile file can cost rises
 with them. The rules themselves have no options.
 
 | Limit                                | Value         | Source                 |

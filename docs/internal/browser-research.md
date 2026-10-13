@@ -1,10 +1,10 @@
 # Browser Research Report
 
-The research SvgValidator's rules were built from, kept for its source citations and Blink
+The research SvgSecurityCheck's rules were built from, kept for its source citations and Blink
 details. Written 2026-09-12, before the library existed, by seven research agents plus one
 fact checker per finding, then hand-verified against Chromium source. It was written to
 design a sanitizer; the decision in [design-decisions.md](design-decisions.md) went the
-other way (reject, never rewrite), and `SvgValidator::rules()` is the current allowlist.
+other way (reject, never rewrite), and `SvgSecurityCheck::rules()` is the current allowlist.
 
 ---
 

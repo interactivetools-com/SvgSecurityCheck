@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace Itools\SvgValidator\Tests\Unit;
+namespace Itools\SvgSecurityCheck\Tests\Unit;
 
-use Itools\SvgValidator\SvgValidator;
-use Itools\SvgValidator\Tests\Support\SvgValidatorTestCase;
+use Itools\SvgSecurityCheck\SvgSecurityCheck;
+use Itools\SvgSecurityCheck\Tests\Support\SvgSecurityCheckTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
@@ -14,7 +14,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
  *
  * Codes: element-not-allowed, namespace-not-allowed.
  */
-class ElementsTest extends SvgValidatorTestCase
+class ElementsTest extends SvgSecurityCheckTestCase
 {
     //region Allowlist
 
@@ -27,7 +27,7 @@ class ElementsTest extends SvgValidatorTestCase
     public static function allowedElementProvider(): array
     {
         $cases = [];
-        foreach (SvgValidator::rules()['elements'] as $element) {
+        foreach (SvgSecurityCheck::rules()['elements'] as $element) {
             $cases[$element] = [$element];
         }
         return $cases;
@@ -58,13 +58,13 @@ class ElementsTest extends SvgValidatorTestCase
 
     public function testRejectedElementReportsOnlyItself(): void
     {
-        $result = SvgValidator::checkString($this->svg('<script href="data:text/javascript,alert(1)" onload="alert(1)"/>'));
+        $result = SvgSecurityCheck::checkString($this->svg('<script href="data:text/javascript,alert(1)" onload="alert(1)"/>'));
         $this->assertSame(['element-not-allowed'], array_column($result->errors, 'code'));
     }
 
     public function testChildrenOfARejectedElementAreStillChecked(): void
     {
-        $result = SvgValidator::checkString($this->svg('<foreignObject><iframe src="data:text/html,x"/></foreignObject>'));
+        $result = SvgSecurityCheck::checkString($this->svg('<foreignObject><iframe src="data:text/html,x"/></foreignObject>'));
         $this->assertSame(['foreignObject', 'iframe'], array_column($result->errors, 'detail'));
     }
 
@@ -94,7 +94,7 @@ class ElementsTest extends SvgValidatorTestCase
 
     public function testNoNamespaceIsRejectedAsAnUnknownElement(): void
     {
-        $result = SvgValidator::checkString($this->svg('<g xmlns=""><rect/></g>'));
+        $result = SvgSecurityCheck::checkString($this->svg('<g xmlns=""><rect/></g>'));
         $this->assertSame(['element-not-allowed', 'element-not-allowed'], array_column($result->errors, 'code'));
         $this->assertSame(['g', 'rect'], array_column($result->errors, 'detail'));
     }
@@ -117,7 +117,7 @@ class ElementsTest extends SvgValidatorTestCase
     public static function inertNamespaceProvider(): array
     {
         $cases = [];
-        foreach (SvgValidator::rules()['inertNamespaces'] as $namespace) {
+        foreach (SvgSecurityCheck::rules()['inertNamespaces'] as $namespace) {
             $cases[$namespace] = [$namespace];
         }
         // matched by prefix: the real namespaces have paths after these roots

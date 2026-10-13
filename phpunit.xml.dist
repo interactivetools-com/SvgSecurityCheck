@@ -10,7 +10,7 @@
          failOnRisky="true"
          beStrictAboutOutputDuringTests="true">
   <extensions>
-    <bootstrap class="Itools\SvgValidator\Tests\Support\ExitGuard"/>
+    <bootstrap class="Itools\SvgSecurityCheck\Tests\Support\ExitGuard"/>
   </extensions>
   <testsuites>
     <testsuite name="unit">

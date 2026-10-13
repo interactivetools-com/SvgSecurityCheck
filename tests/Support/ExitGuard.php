@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Itools\SvgValidator\Tests\Support;
+namespace Itools\SvgSecurityCheck\Tests\Support;
 
 use PHPUnit\Event\Test\Prepared;
 use PHPUnit\Event\Test\PreparedSubscriber;

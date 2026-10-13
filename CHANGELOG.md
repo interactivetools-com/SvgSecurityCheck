@@ -1,4 +1,4 @@
-# SvgValidator Changelog
+# SvgSecurityCheck Changelog
 
 > Tagged releases roll up every change since the previous tag. Versions bundled with
 > CMS Builder are marked on their sections. Error codes are never renamed once released,
@@ -6,20 +6,20 @@
 
 ## [UNRELEASED]
 
-First release. SvgValidator checks an uploaded SVG file and rejects it if it could run
+First release. SvgSecurityCheck checks an uploaded SVG file and rejects it if it could run
 script, load an outside resource, or hang a renderer. It never rewrites the file. The
 [README](README.md) says what it blocks and what it does not check.
 
 ### Added
 
-- **`SvgValidator::checkFile($path)`, `checkString($svg)` and `rules()`.** Nothing throws
+- **`SvgSecurityCheck::checkFile($path)`, `checkString($svg)` and `rules()`.** Nothing throws
   for a bad file; a missing path is a `file-unreadable` rejection.
 - **`Result` with `ok` and `errors`, `Violation` with `code`, `detail`, `template` and
   `message`.** One error per distinct problem, at most 50. `Violation::TEMPLATES` holds
   every message template for translation.
 - **One error code per rule**, listed with its fix in [docs/errors.md](docs/errors.md).
   Codes are stable from this release on.
-- **Size limits as public static properties** (`SvgValidator::$maxExpandedElements` and
+- **Size limits as public static properties** (`SvgSecurityCheck::$maxExpandedElements` and
   the others in [docs/ai-reference.md](docs/ai-reference.md#limits)). The rules themselves
   have no options.
 

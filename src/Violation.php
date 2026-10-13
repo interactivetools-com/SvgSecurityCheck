@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Itools\SvgValidator;
+namespace Itools\SvgSecurityCheck;
 
 // import built-ins so calls resolve at compile time instead of per-call lookups; NamespacedCallsTest keeps this list exact
 use function sprintf;

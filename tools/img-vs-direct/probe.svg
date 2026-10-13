@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Probe file for tools/img-vs-direct/index.html. It carries, on purpose, the things
-  SvgValidator rejects, so a browser can show what they do in <img> and what they do when
+  SvgSecurityCheck rejects, so a browser can show what they do in <img> and what they do when
   the same file is opened directly. Every effect is visible on the drawing itself; nothing
-  leaves the file. SvgValidator::checkFile() on this file reports element-not-allowed,
+  leaves the file. SvgSecurityCheck::checkFile() on this file reports element-not-allowed,
   event-handler and href-not-allowed.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200"

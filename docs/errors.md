@@ -1,6 +1,6 @@
 # Error Codes
 
-Every code SvgValidator reports, its message, and what to change so the file passes. The
+Every code SvgSecurityCheck reports, its message, and what to change so the file passes. The
 message is the `template` with the `detail` filled in at `%s`. Codes never change once
 released; message wording can, so match on `code`.
 

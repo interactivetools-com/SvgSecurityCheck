@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace Itools\SvgValidator\Tests\Unit;
+namespace Itools\SvgSecurityCheck\Tests\Unit;
 
-use Itools\SvgValidator\Tests\Support\SvgValidatorTestCase;
+use Itools\SvgSecurityCheck\Tests\Support\SvgSecurityCheckTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
@@ -14,7 +14,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
  * Codes: href-not-allowed, image-href-not-allowed, embedded-svg-not-allowed,
  * url-not-fragment, reference-expansion-too-large. CSS url() is in CssTest.
  */
-class UrlsTest extends SvgValidatorTestCase
+class UrlsTest extends SvgSecurityCheckTestCase
 {
     private const XLINK = 'xmlns:xlink="http://www.w3.org/1999/xlink"';
 

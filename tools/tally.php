@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /*
- * Runs SvgValidator over every .svg under corpus/ and reports, per source, how many files
+ * Runs SvgSecurityCheck over every .svg under corpus/ and reports, per source, how many files
  * were accepted and rejected, the count per error code with example paths, and the
  * surprises: rejections in a must-accept set, acceptances in a must-reject set.
  *
@@ -21,7 +21,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../vendor/autoload.php';
 
-use Itools\SvgValidator\SvgValidator;
+use Itools\SvgSecurityCheck\SvgSecurityCheck;
 
 const CORPUS_DIR = __DIR__ . '/../corpus';
 const EXAMPLES   = 3;
@@ -61,7 +61,7 @@ foreach ($sources as $name) {
     foreach (svgFiles($dir) as $path) {
         $relative = substr($path, strlen($dir) + 1);
         $expect   = expectFor($relative, $meta);
-        $result   = str_ends_with($path, '.svg.txt') ? SvgValidator::checkString(svgoInput(file_get_contents($path))) : SvgValidator::checkFile($path);
+        $result   = str_ends_with($path, '.svg.txt') ? SvgSecurityCheck::checkString(svgoInput(file_get_contents($path))) : SvgSecurityCheck::checkFile($path);
         $codes    = array_unique(array_column($result->errors, 'code'));
 
         if ($result->ok) {

@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace Itools\SvgValidator\Tests\Integration;
+namespace Itools\SvgSecurityCheck\Tests\Integration;
 
-use Itools\SvgValidator\Result;
-use Itools\SvgValidator\SvgValidator;
-use Itools\SvgValidator\Violation;
+use Itools\SvgSecurityCheck\Result;
+use Itools\SvgSecurityCheck\SvgSecurityCheck;
+use Itools\SvgSecurityCheck\Violation;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 
@@ -22,9 +22,9 @@ class DocsCoverageTest extends TestCase
     public static function memberProvider(): iterable
     {
         $members = [];
-        foreach ((new ReflectionClass(SvgValidator::class))->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+        foreach ((new ReflectionClass(SvgSecurityCheck::class))->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
             if (!$method->isConstructor()) {
-                $members[] = 'SvgValidator::' . $method->getName() . '(';
+                $members[] = 'SvgSecurityCheck::' . $method->getName() . '(';
             }
         }
         foreach ([Result::class => '$result', Violation::class => '$violation'] as $class => $variable) {

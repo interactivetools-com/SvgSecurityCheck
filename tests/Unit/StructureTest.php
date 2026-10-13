@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace Itools\SvgValidator\Tests\Unit;
+namespace Itools\SvgSecurityCheck\Tests\Unit;
 
-use Itools\SvgValidator\SvgValidator;
-use Itools\SvgValidator\Tests\Support\SvgValidatorTestCase;
+use Itools\SvgSecurityCheck\SvgSecurityCheck;
+use Itools\SvgSecurityCheck\Tests\Support\SvgSecurityCheckTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use ReflectionClass;
 
@@ -20,13 +20,13 @@ use ReflectionClass;
  * libxml's 10 MB text-node limit is not exercised: building the input costs more
  * than it proves. The depth limit is, since 300 nested elements are cheap.
  */
-class StructureTest extends SvgValidatorTestCase
+class StructureTest extends SvgSecurityCheckTestCase
 {
     //region Reading the File
 
     public function testMissingFile(): void
     {
-        $result = SvgValidator::checkFile('/no/such/dir/logo.svg');
+        $result = SvgSecurityCheck::checkFile('/no/such/dir/logo.svg');
         $this->assertFalse($result->ok);
         $this->assertSame('file-unreadable', $result->errors[0]->code);
         $this->assertSame('logo.svg', $result->errors[0]->detail);   // basename only: the message may end up in a page
@@ -34,21 +34,21 @@ class StructureTest extends SvgValidatorTestCase
 
     public function testDirectory(): void
     {
-        $this->assertSame('file-unreadable', SvgValidator::checkFile(sys_get_temp_dir())->errors[0]->code);
+        $this->assertSame('file-unreadable', SvgSecurityCheck::checkFile(sys_get_temp_dir())->errors[0]->code);
     }
 
     public function testFileAndStringAgree(): void
     {
         $svg        = $this->svg('<rect width="1" height="1"/><script/>');
-        $fromFile   = SvgValidator::checkFile($this->tempFile($svg));
-        $fromString = SvgValidator::checkString($svg);
+        $fromFile   = SvgSecurityCheck::checkFile($this->tempFile($svg));
+        $fromString = SvgSecurityCheck::checkString($svg);
         $this->assertSame(['element-not-allowed'], array_column($fromFile->errors, 'code'));
         $this->assertEquals($fromString, $fromFile);
     }
 
     public function testAcceptedFile(): void
     {
-        $this->assertTrue(SvgValidator::checkFile($this->tempFile($this->svg()))->ok);
+        $this->assertTrue(SvgSecurityCheck::checkFile($this->tempFile($this->svg()))->ok);
     }
 
     /** libxml2 decodes %XX in a path as if it were a URL; a real file named with %27 must still open. */
@@ -57,7 +57,7 @@ class StructureTest extends SvgValidatorTestCase
         $path = $this->tempFile($this->svg()) . ' d%27Ivrea 50%_off.svg';
         file_put_contents($path, $this->svg());
         try {
-            $this->assertTrue(SvgValidator::checkFile($path)->ok);
+            $this->assertTrue(SvgSecurityCheck::checkFile($path)->ok);
         } finally {
             unlink($path);
         }
@@ -71,7 +71,7 @@ class StructureTest extends SvgValidatorTestCase
      */
     public function testOpenFailureReportsFileUnreadable(): void
     {
-        $class     = new ReflectionClass(SvgValidator::class);
+        $class     = new ReflectionClass(SvgSecurityCheck::class);
         $validator = $class->newInstanceWithoutConstructor();
         $class->getConstructor()->invoke($validator, 0);
         $result = $class->getMethod('check')->invoke($validator, $this->svg(), fn() => false, 'logo.svg');
@@ -275,7 +275,7 @@ class StructureTest extends SvgValidatorTestCase
     #[DataProvider('rejectedRootProvider')]
     public function testRootRejected(string $file, string $code, string $detail): void
     {
-        $result = SvgValidator::checkString($file);
+        $result = SvgSecurityCheck::checkString($file);
         $this->assertSame([$code], array_column($result->errors, 'code'));
         $this->assertSame($detail, $result->errors[0]->detail);
     }
@@ -335,7 +335,7 @@ class StructureTest extends SvgValidatorTestCase
     public function testMalformedXmlEndsTheList(): void
     {
         $padding = '<!--' . str_repeat('x', 5000) . '-->';
-        $result  = SvgValidator::checkString($this->svg("<script/>$padding") . '<foreignObject/>');
+        $result  = SvgSecurityCheck::checkString($this->svg("<script/>$padding") . '<foreignObject/>');
         $this->assertSame(['element-not-allowed', 'malformed-xml'], array_column($result->errors, 'code'));
         $this->assertSame('script', $result->errors[0]->detail);
     }
@@ -343,7 +343,7 @@ class StructureTest extends SvgValidatorTestCase
     /** In a small file the error shares a chunk with everything else, so malformed-xml is the only report. */
     public function testSmallMalformedFileReportsOnlyTheXmlError(): void
     {
-        $result = SvgValidator::checkString($this->svg('<script/>') . '<foreignObject/>');
+        $result = SvgSecurityCheck::checkString($this->svg('<script/>') . '<foreignObject/>');
         $this->assertSame(['malformed-xml'], array_column($result->errors, 'code'));
     }
 

@@ -2,7 +2,7 @@
 
 The shared writing standards for all InteractiveTools libraries are in the team's
 [internal docs repo](https://github.com/itools-internal/docs/tree/main/open-source)
-under open-source/ (private, team access only). This file holds SvgValidator-specific
+under open-source/ (private, team access only). This file holds SvgSecurityCheck-specific
 additions only.
 
 - **Reader assumption:** a working PHP programmer who handles file uploads and has never

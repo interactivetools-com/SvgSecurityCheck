@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace Itools\SvgValidator\Tests\Unit;
+namespace Itools\SvgSecurityCheck\Tests\Unit;
 
-use Itools\SvgValidator\SvgValidator;
-use Itools\SvgValidator\Tests\Support\SvgValidatorTestCase;
+use Itools\SvgSecurityCheck\SvgSecurityCheck;
+use Itools\SvgSecurityCheck\Tests\Support\SvgSecurityCheckTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
@@ -14,7 +14,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
  * Code: css-not-allowed. The same rule runs on both places, so the token
  * providers feed one test for the element and one for the attribute.
  */
-class CssTest extends SvgValidatorTestCase
+class CssTest extends SvgSecurityCheckTestCase
 {
     //region Accepted CSS
 
@@ -86,7 +86,7 @@ class CssTest extends SvgValidatorTestCase
     public function testUrlDetailIsCutOnACharacterBoundary(): void
     {
         $url    = 'https://evil.example/' . str_repeat("\u{4E2D}", 30);   // 21 ASCII characters, then 3-byte characters
-        $detail = SvgValidator::checkString($this->svg("<style>.a{fill:url($url)}</style>"))->errors[0]->detail;
+        $detail = SvgSecurityCheck::checkString($this->svg("<style>.a{fill:url($url)}</style>"))->errors[0]->detail;
         $this->assertSame('url(' . mb_substr($url, 0, 40), $detail);
         $this->assertTrue(mb_check_encoding($detail, 'UTF-8'));
     }
@@ -141,7 +141,7 @@ class CssTest extends SvgValidatorTestCase
 
     public function testEachStyleElementIsCheckedOnItsOwn(): void
     {
-        $result = SvgValidator::checkString($this->svg('<style>.a{fill:red}</style><style>@import "x.css";</style><style>.b{fill:blue}</style>'));
+        $result = SvgSecurityCheck::checkString($this->svg('<style>.a{fill:red}</style><style>@import "x.css";</style><style>.b{fill:blue}</style>'));
         $this->assertSame(['css-not-allowed'], array_column($result->errors, 'code'));
     }
 
@@ -166,7 +166,7 @@ class CssTest extends SvgValidatorTestCase
         $this->assertAccepts($this->svg('<style>' . $text(1000000) . '</style>'));
         $this->assertRejects($this->svg('<style>' . $text(1000001) . '</style>'), 'css-not-allowed', 'more than 1,000,000 bytes');
         $this->assertRejects($this->svg('<style>' . $text(600000) . '<title/>' . $text(400001) . '</style>'), 'css-not-allowed', 'more than 1,000,000 bytes');
-        $result = SvgValidator::checkString($this->svg('<style>' . $text(1000001) . '</style><style>@import "x";</style>'));
+        $result = SvgSecurityCheck::checkString($this->svg('<style>' . $text(1000001) . '</style><style>@import "x";</style>'));
         $this->assertSame(['more than 1,000,000 bytes', '@import'], array_column($result->errors, 'detail'));   // the next <style> is still checked
     }
 

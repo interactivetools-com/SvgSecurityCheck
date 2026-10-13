@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace Itools\SvgValidator\Tests\Integration;
+namespace Itools\SvgSecurityCheck\Tests\Integration;
 
-use Itools\SvgValidator\SvgValidator;
+use Itools\SvgSecurityCheck\SvgSecurityCheck;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -16,14 +16,14 @@ class DocsExamplesTest extends TestCase
     /** README quick start: the message for a script element */
     public function testScriptMessage(): void
     {
-        $result = SvgValidator::checkString('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
+        $result = SvgSecurityCheck::checkString('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
         $this->assertSame('<script> is not allowed in uploaded SVGs', $result->errors[0]->message);
     }
 
     /** README, the rest of the API: the four Violation fields */
     public function testViolationFields(): void
     {
-        $violation = SvgValidator::checkString('<svg xmlns="http://www.w3.org/2000/svg"><script/></svg>')->errors[0];
+        $violation = SvgSecurityCheck::checkString('<svg xmlns="http://www.w3.org/2000/svg"><script/></svg>')->errors[0];
         $this->assertSame('element-not-allowed', $violation->code);
         $this->assertSame('script', $violation->detail);
         $this->assertSame('<%s> is not allowed in uploaded SVGs', $violation->template);
@@ -33,6 +33,6 @@ class DocsExamplesTest extends TestCase
     /** README, nothing throws: a missing path is a rejection; docs/errors.md quotes the message */
     public function testMissingFileMessage(): void
     {
-        $this->assertSame('Cannot read file php3F.tmp', SvgValidator::checkFile('/tmp/php3F.tmp')->errors[0]->message);
+        $this->assertSame('Cannot read file php3F.tmp', SvgSecurityCheck::checkFile('/tmp/php3F.tmp')->errors[0]->message);
     }
 }

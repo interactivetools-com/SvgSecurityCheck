@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Itools\SvgValidator\Tests\Integration;
+namespace Itools\SvgSecurityCheck\Tests\Integration;
 
 use Itools\Standards\NamespacedCallsCheck;
 use PHPUnit\Framework\TestCase;

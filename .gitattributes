@@ -13,6 +13,6 @@ phpunit.xml.dist export-ignore
 tests            export-ignore
 tools            export-ignore
 
-# Except the AI reference: coding assistants read vendor/itools/svgvalidator/ locally,
+# Except the AI reference: coding assistants read vendor/itools/svgsecuritycheck/ locally,
 # and this one file teaches them the whole API.
 docs/ai-reference.md -export-ignore

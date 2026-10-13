@@ -37,7 +37,7 @@ done
 prompt_file=$(mktemp)
 trap 'rm -f "$prompt_file"' EXIT
 cat > "$prompt_file" <<'PROMPT'
-This is a whole-library pre-release scan of SvgValidator, a PHP 8.1+ library
+This is a whole-library pre-release scan of SvgSecurityCheck, a PHP 8.1+ library
 that checks an uploaded SVG file and rejects it when it could run script, load
 an outside resource, or hang a renderer. It validates and never rewrites.
 tests/, vendor/ and corpus/ are excluded on purpose. Review runtime source,

@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace Itools\SvgValidator\Tests\Unit;
+namespace Itools\SvgSecurityCheck\Tests\Unit;
 
-use Itools\SvgValidator\SvgValidator;
-use Itools\SvgValidator\Tests\Support\SvgValidatorTestCase;
+use Itools\SvgSecurityCheck\SvgSecurityCheck;
+use Itools\SvgSecurityCheck\Tests\Support\SvgSecurityCheckTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
@@ -15,7 +15,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
  *
  * Codes: animation-target-not-allowed, animation-value-not-allowed.
  */
-class SmilTest extends SvgValidatorTestCase
+class SmilTest extends SvgSecurityCheckTestCase
 {
     //region Accepted Animations
 
@@ -128,7 +128,7 @@ class SmilTest extends SvgValidatorTestCase
 
     public function testHrefRewriteReportsBothProblems(): void
     {
-        $result = SvgValidator::checkString($this->svg('<a href="#a"><set attributeName="href" to="javascript:alert(1)"/></a>'));
+        $result = SvgSecurityCheck::checkString($this->svg('<a href="#a"><set attributeName="href" to="javascript:alert(1)"/></a>'));
         $this->assertSame(['animation-target-not-allowed', 'animation-value-not-allowed'], array_column($result->errors, 'code'));
     }
 

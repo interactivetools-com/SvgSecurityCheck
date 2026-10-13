@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Itools\SvgValidator;
+namespace Itools\SvgSecurityCheck;
 
 use Closure;
 use LibXMLError;
@@ -17,22 +17,22 @@ use const LIBXML_NONET, PHP_OS_FAMILY;
  * but not when the file is opened on its own; this checks the file, so it is safe either
  * way. The file is streamed and never modified.
  *
- *     $result = SvgValidator::checkFile($_FILES['logo']['tmp_name']);
+ *     $result = SvgSecurityCheck::checkFile($_FILES['logo']['tmp_name']);
  *     if (!$result->ok) {
  *         foreach ($result->errors as $violation) {
  *             echo htmlspecialchars($violation->message), "<br>";
  *         }
  *     }
  *
- *     $result = SvgValidator::checkString($svg);   // same check on a string
- *     $rules  = SvgValidator::rules();             // the allowlists, for docs and debugging
+ *     $result = SvgSecurityCheck::checkString($svg);   // same check on a string
+ *     $rules  = SvgSecurityCheck::rules();             // the allowlists, for docs and debugging
  *
  * Every rule is an allowlist. Elements, attributes, XML namespaces, URL forms, and CSS
  * functions not on a list are rejected, so a new browser feature is closed until it is
  * added here. docs/errors.md has the fix for each code and docs/ai-reference.md every rule
  * and list.
  */
-final class SvgValidator
+final class SvgSecurityCheck
 {
     //region Allowlists
 
@@ -187,7 +187,7 @@ final class SvgValidator
      * A path that is not a readable file gives a result with one file-unreadable error;
      * nothing throws.
      *
-     *     $result = SvgValidator::checkFile('/tmp/php3F.tmp');
+     *     $result = SvgSecurityCheck::checkFile('/tmp/php3F.tmp');
      *
      * @param string $path Path to the file, such as an upload's tmp_name
      */
@@ -222,7 +222,7 @@ final class SvgValidator
     /**
      * Checks SVG source held in a string. Same result as checkFile() for the same bytes.
      *
-     *     $result = SvgValidator::checkString('<svg xmlns="http://www.w3.org/2000/svg"/>');
+     *     $result = SvgSecurityCheck::checkString('<svg xmlns="http://www.w3.org/2000/svg"/>');
      */
     public static function checkString(string $svg): Result
     {

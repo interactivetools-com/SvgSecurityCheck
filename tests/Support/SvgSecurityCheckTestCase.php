@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace Itools\SvgValidator\Tests\Support;
+namespace Itools\SvgSecurityCheck\Tests\Support;
 
-use Itools\SvgValidator\Result;
-use Itools\SvgValidator\SvgValidator;
-use Itools\SvgValidator\Violation;
+use Itools\SvgSecurityCheck\Result;
+use Itools\SvgSecurityCheck\SvgSecurityCheck;
+use Itools\SvgSecurityCheck\Violation;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -19,7 +19,7 @@ use PHPUnit\Framework\TestCase;
  *   error, since one bad element often breaks two rules; ResultTest pins exact lists
  * - Failure messages list every violation the validator reported, one per line
  */
-abstract class SvgValidatorTestCase extends TestCase
+abstract class SvgSecurityCheckTestCase extends TestCase
 {
     use SharedTestHelpers;
 
@@ -45,7 +45,7 @@ abstract class SvgValidatorTestCase extends TestCase
     /** Write $contents to a new temp file and return its path, for checkFile() tests. */
     protected function tempFile(string $contents): string
     {
-        $path = tempnam(sys_get_temp_dir(), 'svgvalidator-');
+        $path = tempnam(sys_get_temp_dir(), 'svgsecuritycheck-');
         file_put_contents($path, $contents);
         $this->tempFiles[] = $path;
         return $path;
@@ -66,7 +66,7 @@ abstract class SvgValidatorTestCase extends TestCase
     /** Assert checkString($svg) passes. Returns the Result. */
     protected function assertAccepts(string $svg): Result
     {
-        $result = SvgValidator::checkString($svg);
+        $result = SvgSecurityCheck::checkString($svg);
         $this->assertTrue($result->ok, "Expected the SVG to be accepted, got:\n" . self::describe($result));
         return $result;
     }
@@ -77,7 +77,7 @@ abstract class SvgValidatorTestCase extends TestCase
      */
     protected function assertRejects(string $svg, string $code, ?string $detail = null): Violation
     {
-        $result = SvgValidator::checkString($svg);
+        $result = SvgSecurityCheck::checkString($svg);
         foreach ($result->errors as $violation) {
             if ($violation->code === $code && ($detail === null || $violation->detail === $detail)) {
                 $this->addToAssertionCount(1);   // a match is the assertion; without this PHPUnit flags the test as risky

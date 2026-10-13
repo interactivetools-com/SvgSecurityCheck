@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
 
-namespace Itools\SvgValidator\Tests\Unit;
+namespace Itools\SvgSecurityCheck\Tests\Unit;
 
-use Itools\SvgValidator\Result;
-use Itools\SvgValidator\SvgValidator;
-use Itools\SvgValidator\Tests\Support\SvgValidatorTestCase;
-use Itools\SvgValidator\Violation;
+use Itools\SvgSecurityCheck\Result;
+use Itools\SvgSecurityCheck\SvgSecurityCheck;
+use Itools\SvgSecurityCheck\Tests\Support\SvgSecurityCheckTestCase;
+use Itools\SvgSecurityCheck\Violation;
 
 /**
  * The shape of what comes back: Result, Violation and its templates, how the error
@@ -14,7 +14,7 @@ use Itools\SvgValidator\Violation;
  */
 use PHPUnit\Framework\Attributes\DataProvider;
 
-class ResultTest extends SvgValidatorTestCase
+class ResultTest extends SvgSecurityCheckTestCase
 {
     //region Result
 
@@ -34,7 +34,7 @@ class ResultTest extends SvgValidatorTestCase
 
     public function testAcceptedSvgGivesAnEmptyList(): void
     {
-        $result = SvgValidator::checkString($this->svg('<rect width="1" height="1"/>'));
+        $result = SvgSecurityCheck::checkString($this->svg('<rect width="1" height="1"/>'));
         $this->assertTrue($result->ok);
         $this->assertSame([], $result->errors);
     }
@@ -104,7 +104,7 @@ class ResultTest extends SvgValidatorTestCase
     #[DataProvider('longDetailProvider')]
     public function testDetailFromTheFileIsCutAtSixty(string $svg, string $code, string $endsWith): void
     {
-        $result = SvgValidator::checkString($svg);
+        $result = SvgSecurityCheck::checkString($svg);
         foreach ($result->errors as $violation) {
             if ($violation->code === $code) {
                 $this->assertStringNotContainsString(str_repeat('a', 61), $violation->detail, $violation->detail);
@@ -141,13 +141,13 @@ class ResultTest extends SvgValidatorTestCase
 
     public function testTheSameProblemIsReportedOnce(): void
     {
-        $result = SvgValidator::checkString($this->svg('<script/><script/><g><script/></g>'));
+        $result = SvgSecurityCheck::checkString($this->svg('<script/><script/><g><script/></g>'));
         $this->assertCount(1, $result->errors);
     }
 
     public function testDistinctProblemsInFileOrder(): void
     {
-        $result = SvgValidator::checkString($this->svg('<script/><foreignObject/><rect onclick="x"/><script/>'));
+        $result = SvgSecurityCheck::checkString($this->svg('<script/><foreignObject/><rect onclick="x"/><script/>'));
         $this->assertSame(['element-not-allowed', 'element-not-allowed', 'event-handler'], array_column($result->errors, 'code'));
         $this->assertSame(['script', 'foreignObject', 'onclick'], array_column($result->errors, 'detail'));
     }
@@ -158,7 +158,7 @@ class ResultTest extends SvgValidatorTestCase
         for ($i = 1; $i <= 60; $i++) {
             $body .= "<bad$i/>";
         }
-        $result = SvgValidator::checkString($this->svg($body));
+        $result = SvgSecurityCheck::checkString($this->svg($body));
         $this->assertCount(50, $result->errors);
         $this->assertSame('bad1', $result->errors[0]->detail);
         $this->assertSame('bad50', $result->errors[49]->detail);
@@ -171,7 +171,7 @@ class ResultTest extends SvgValidatorTestCase
         for ($i = 1; $i <= 60; $i++) {
             $attributes .= " bad$i=\"1\"";
         }
-        $this->assertCount(50, SvgValidator::checkString($this->svg("<rect$attributes/>"))->errors);
+        $this->assertCount(50, SvgSecurityCheck::checkString($this->svg("<rect$attributes/>"))->errors);
     }
 
     public function testAtMostFiftyErrorsWithAnEmbeddedSvg(): void
@@ -182,33 +182,33 @@ class ResultTest extends SvgValidatorTestCase
             $body .= "<bad$i/>";
         }
         $body .= '<image href="data:image/svg+xml;base64,' . base64_encode($inner) . '"/>';
-        $this->assertCount(50, SvgValidator::checkString($this->svg($body))->errors);
+        $this->assertCount(50, SvgSecurityCheck::checkString($this->svg($body))->errors);
     }
 
     /** The caps are public static properties, so an application can change them; nothing else reads them. */
     public function testLimitsCanBeOverridden(): void
     {
-        $maxErrors       = SvgValidator::$maxErrors;
-        $maxDetailLength = SvgValidator::$maxDetailLength;
-        $maxStyleLength  = SvgValidator::$maxStyleLength;
+        $maxErrors       = SvgSecurityCheck::$maxErrors;
+        $maxDetailLength = SvgSecurityCheck::$maxDetailLength;
+        $maxStyleLength  = SvgSecurityCheck::$maxStyleLength;
         try {
-            SvgValidator::$maxErrors       = 5;
-            SvgValidator::$maxDetailLength = 10;
-            SvgValidator::$maxStyleLength  = 10;
-            $result = SvgValidator::checkString($this->svg('<bad1/><bad2/><bad3/><bad4/><bad5/><bad6/><' . str_repeat('a', 20) . '/>'));
+            SvgSecurityCheck::$maxErrors       = 5;
+            SvgSecurityCheck::$maxDetailLength = 10;
+            SvgSecurityCheck::$maxStyleLength  = 10;
+            $result = SvgSecurityCheck::checkString($this->svg('<bad1/><bad2/><bad3/><bad4/><bad5/><bad6/><' . str_repeat('a', 20) . '/>'));
             $this->assertCount(5, $result->errors);
-            $this->assertSame('aaaaaaaaaa...', SvgValidator::checkString($this->svg('<' . str_repeat('a', 20) . '/>'))->errors[0]->detail);
-            $this->assertSame('more than 10 bytes', SvgValidator::checkString($this->svg('<style>.a{fill:red}</style>'))->errors[0]->detail);
+            $this->assertSame('aaaaaaaaaa...', SvgSecurityCheck::checkString($this->svg('<' . str_repeat('a', 20) . '/>'))->errors[0]->detail);
+            $this->assertSame('more than 10 bytes', SvgSecurityCheck::checkString($this->svg('<style>.a{fill:red}</style>'))->errors[0]->detail);
         } finally {
-            SvgValidator::$maxErrors       = $maxErrors;
-            SvgValidator::$maxDetailLength = $maxDetailLength;
-            SvgValidator::$maxStyleLength  = $maxStyleLength;
+            SvgSecurityCheck::$maxErrors       = $maxErrors;
+            SvgSecurityCheck::$maxDetailLength = $maxDetailLength;
+            SvgSecurityCheck::$maxStyleLength  = $maxStyleLength;
         }
     }
 
     public function testErrorsAreViolationsWithKnownCodes(): void
     {
-        $result = SvgValidator::checkString($this->svg('<script/><rect onclick="x" style="@import x"/>'));
+        $result = SvgSecurityCheck::checkString($this->svg('<script/><rect onclick="x" style="@import x"/>'));
         foreach ($result->errors as $violation) {
             $this->assertInstanceOf(Violation::class, $violation);
             $this->assertArrayHasKey($violation->code, Violation::TEMPLATES);
@@ -220,7 +220,7 @@ class ResultTest extends SvgValidatorTestCase
 
     public function testRulesLists(): void
     {
-        $rules = SvgValidator::rules();
+        $rules = SvgSecurityCheck::rules();
         $this->assertSame(['elements', 'attributes', 'namespacedAttributes', 'inertNamespaces', 'inertProcessingInstructions', 'imageElements', 'dataImageTypes'], array_keys($rules));
         $this->assertContains('svg', $rules['elements']);
         $this->assertNotContains('script', $rules['elements']);

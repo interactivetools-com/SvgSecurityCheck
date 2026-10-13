@@ -23,7 +23,7 @@ declare(strict_types=1);
 const MANIFEST   = __DIR__ . '/commons-manifest.json';
 const CORPUS_DIR = __DIR__ . '/../corpus/own/commons';
 const API        = 'https://commons.wikimedia.org/w/api.php';
-const USER_AGENT = 'SvgValidator-corpus/1.0 (https://github.com/interactivetools-com/SvgValidator)';
+const USER_AGENT = 'SvgSecurityCheck-corpus/1.0 (https://github.com/interactivetools-com/SvgSecurityCheck)';
 const PER_TOOL   = 30;
 const MAX_BYTES  = 3000000;
 const TOOLS      = ['adobe-illustrator' => 'Adobe Illustrator', 'affinity-designer' => 'Affinity Designer', 'coreldraw' => 'CorelDRAW', 'figma' => 'Figma', 'inkscape' => 'Inkscape', 'sketch' => 'Sketch'];

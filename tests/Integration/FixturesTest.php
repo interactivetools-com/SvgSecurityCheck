@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace Itools\SvgValidator\Tests\Integration;
+namespace Itools\SvgSecurityCheck\Tests\Integration;
 
-use Itools\SvgValidator\SvgValidator;
-use Itools\SvgValidator\Tests\Support\SvgValidatorTestCase;
+use Itools\SvgSecurityCheck\SvgSecurityCheck;
+use Itools\SvgSecurityCheck\Tests\Support\SvgSecurityCheckTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
@@ -12,14 +12,14 @@ use PHPUnit\Framework\Attributes\DataProvider;
  * accept/ files must pass, reject/ files must report the code in their name
  * (reject/<code>-<n>.svg).
  */
-class FixturesTest extends SvgValidatorTestCase
+class FixturesTest extends SvgSecurityCheckTestCase
 {
     private const FIXTURES = __DIR__ . '/../Support/fixtures';
 
     #[DataProvider('acceptFixtureProvider')]
     public function testAcceptFixture(string $path): void
     {
-        $result = SvgValidator::checkFile($path);
+        $result = SvgSecurityCheck::checkFile($path);
         $this->assertTrue($result->ok, "Expected the fixture to be accepted, got:\n" . self::describe($result));
     }
 
@@ -35,7 +35,7 @@ class FixturesTest extends SvgValidatorTestCase
     #[DataProvider('rejectFixtureProvider')]
     public function testRejectFixture(string $path, string $code): void
     {
-        $result = SvgValidator::checkFile($path);
+        $result = SvgSecurityCheck::checkFile($path);
         $this->assertContains($code, array_column($result->errors, 'code'), "Expected $code, got:\n" . self::describe($result));
     }
 

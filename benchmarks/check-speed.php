@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Times SvgValidator on generated files of known sizes and on the real files in corpus/,
+ * Times SvgSecurityCheck on generated files of known sizes and on the real files in corpus/,
  * and prints the markdown tables in docs/performance.md.
  *
  *     php -d opcache.enable_cli=1 -d xdebug.mode=off benchmarks/check-speed.php
@@ -18,14 +18,14 @@ declare(strict_types=1);
  * does not see. On other systems the memory columns print n/a.
  */
 
-namespace Itools\SvgValidator\Benchmarks;
+namespace Itools\SvgSecurityCheck\Benchmarks;
 
-use Itools\SvgValidator\SvgValidator;
+use Itools\SvgSecurityCheck\SvgSecurityCheck;
 use function renderMdTable;
 
 require __DIR__ . '/../src/Violation.php';
 require __DIR__ . '/../src/Result.php';
-require __DIR__ . '/../src/SvgValidator.php';
+require __DIR__ . '/../src/SvgSecurityCheck.php';
 require __DIR__ . '/../tools/shared-md-table.php';
 
 const RUNS       = 7;
@@ -39,9 +39,9 @@ $options   = getopt('', ['corpus:', 'sanitizer:', 'subprocess', 'file:', 'mode:'
 $corpus    = $options['corpus'] ?? null;
 $sanitizer = $options['sanitizer'] ?? null;
 
-// Every child this script starts carries SVGVALIDATOR_BENCH_CHILD. A child that is not in
+// Every child this script starts carries SVGSECURITYCHECK_BENCH_CHILD. A child that is not in
 // subprocess mode would run the full benchmark and start children of its own without end.
-if (getenv('SVGVALIDATOR_BENCH_CHILD') !== false && !isset($options['subprocess'])) {
+if (getenv('SVGSECURITYCHECK_BENCH_CHILD') !== false && !isset($options['subprocess'])) {
     fwrite(STDERR, "check-speed.php: refusing to run the full benchmark inside a benchmark child process\n");
     exit(1);
 }
@@ -53,13 +53,13 @@ if ($sanitizer !== null) {
 // Subprocess mode: time one file and print "seconds peakGrowthKb" on one line.
 if (isset($options['subprocess'])) {
     $file    = $options['file'];
-    $call    = $options['mode'] === 'sanitize' ? fn() => sanitize($file) : fn() => SvgValidator::checkFile($file);
+    $call    = $options['mode'] === 'sanitize' ? fn() => sanitize($file) : fn() => SvgSecurityCheck::checkFile($file);
     $before  = peakKb();
     $seconds = fastest($call);
     printf("%.9f %d\n", $seconds, IS_LINUX ? peakKb() - $before : 0);
     exit;
 }
-putenv('SVGVALIDATOR_BENCH_CHILD=1');   // inherited by every process shell_exec() starts below
+putenv('SVGSECURITYCHECK_BENCH_CHILD=1');   // inherited by every process shell_exec() starts below
 
 //endregion
 //region Environment
@@ -78,7 +78,7 @@ if (!$opcacheOn || $xdebugOn) {
 //endregion
 //region Generated Files
 
-$tempDir = sys_get_temp_dir() . '/svgvalidator-bench-' . bin2hex(random_bytes(8));   // a name nobody can create ahead of us
+$tempDir = sys_get_temp_dir() . '/svgsecuritycheck-bench-' . bin2hex(random_bytes(8));   // a name nobody can create ahead of us
 if (!mkdir($tempDir, 0700)) {
     fwrite(STDERR, "check-speed.php: could not create $tempDir\n");
     exit(1);
@@ -93,7 +93,7 @@ $rows = [];
 foreach (SIZES as $label => $bytes) {
     $path = "$tempDir/generated-$bytes.svg";
     file_put_contents($path, generateSvg($bytes));
-    $result = SvgValidator::checkFile($path);
+    $result = SvgSecurityCheck::checkFile($path);
     if (!$result->ok) {
         fwrite(STDERR, "generated $label file was rejected: {$result->errors[0]->message}\n");
         exit(1);
@@ -118,7 +118,7 @@ $rows = [];
 foreach (hostileFiles() as $label => $svg) {
     $path = "$tempDir/hostile-" . preg_replace('/\W+/', '-', $label) . '.svg';
     file_put_contents($path, $svg);
-    $result = SvgValidator::checkFile($path);
+    $result = SvgSecurityCheck::checkFile($path);
     if ($result->ok) {
         fwrite(STDERR, "hostile file '$label' was accepted\n");
         exit(1);
@@ -143,7 +143,7 @@ if ($corpus !== null) {
         $passStart = hrtime(true);
         foreach ($files as $path) {
             $start = hrtime(true);
-            SvgValidator::checkFile($path);
+            SvgSecurityCheck::checkFile($path);
             $seconds      = (hrtime(true) - $start) / 1e9;
             $times[$path] = min($times[$path] ?? INF, $seconds);
         }

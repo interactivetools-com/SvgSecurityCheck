@@ -1,4 +1,4 @@
-# SvgValidator Design Decisions
+# SvgSecurityCheck Design Decisions
 
 Settled decisions with their rationale, all made in 2026-09 while the library was built.
 Check here before proposing a feature, a rule change, or a rename. Only the road-not-taken
@@ -118,7 +118,7 @@ is a rejection like any other and the caller has one code path.
 
 ## Three Classes, No Options
 
-`SvgValidator`, `Result`, `Violation`. The first drafts had one class and an array-shaped
+`SvgSecurityCheck`, `Result`, `Violation`. The first drafts had one class and an array-shaped
 result; typed readonly properties won because the IDE and static analysis check them.
 Nothing else gets a class, and there are no dependencies beyond ext-xmlreader and
 ext-libxml: security code benefits from being short enough to read in one sitting.
@@ -237,12 +237,15 @@ corpus surfaced.
 
 ## Naming
 
-`SvgValidator`, `itools/svgvalidator`, `Itools\SvgValidator`, following the sibling
-libraries: CamelCase folder, repo and namespace, lowercase Packagist name with no hyphen.
+`SvgSecurityCheck`, `itools/svgsecuritycheck`, `Itools\SvgSecurityCheck`, following the
+sibling libraries: CamelCase folder, repo and namespace, lowercase Packagist name with no
+hyphen. "Security" covers everything the rules refuse, which is more than script: outside
+resource loads and renderer hangs too. "Check" says what comes back: pass or fail with
+reasons, never a cleaned copy.
 
-Rejected: `SVGValidator` (PSR treats acronyms as words, as in `XmlReader`); `SafeSvg`,
-`SvgGuard`, `SvgRules` (hide that it rejects files); `SvgChecker` (the runner-up, but
-"validate" is the verb upload code already uses for extension and MIME checks).
+Rejected: `SvgValidator` (to PHP developers "validator" means markup conformance or form
+input rules); `SVGSecurityCheck` (PSR treats acronyms as words, as in `XmlReader`);
+`SafeSvg`, `SvgGuard`, `SvgRules` (hide that it rejects files).
 
 Error codes are lowercase, hyphenated, one per rule, and never renamed once released,
 because applications map them to their own messages.

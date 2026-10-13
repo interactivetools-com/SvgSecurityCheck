@@ -232,7 +232,7 @@ function githubApi(string $url, bool $allow404 = false): ?array
 /** One GET, with the GitHub token when the URL is GitHub's API. Exits on any failure other than an allowed 404. */
 function httpGet(string $url, bool $allow404 = false): ?string
 {
-    $headers = ['User-Agent: svgvalidator-fetch-corpus', 'Accept: application/json'];
+    $headers = ['User-Agent: svgsecuritycheck-fetch-corpus', 'Accept: application/json'];
     $token   = getenv('GITHUB_TOKEN');
     if ($token && str_starts_with($url, 'https://api.github.com/')) {
         $headers[] = "Authorization: Bearer $token";
@@ -268,7 +268,7 @@ function downloadAll(array $urls): int
         $url  = $queue[$path];
         unset($queue[$path]);
         $handle = curl_init($url);
-        curl_setopt_array($handle, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 120, CURLOPT_FOLLOWLOCATION => true, CURLOPT_USERAGENT => 'svgvalidator-fetch-corpus']);
+        curl_setopt_array($handle, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 120, CURLOPT_FOLLOWLOCATION => true, CURLOPT_USERAGENT => 'svgsecuritycheck-fetch-corpus']);
         curl_multi_add_handle($multi, $handle);
         $active[(int)$handle] = [$path, $handle];
     };
