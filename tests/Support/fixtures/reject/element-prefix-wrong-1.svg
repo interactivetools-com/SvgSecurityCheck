@@ -1,0 +1,4 @@
+<!-- rejected: a metadata-namespace element without a prefix, which an HTML parser reads as an HTML <p> -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">
+  <p xmlns="http://ns.adobe.com/x">text</p>
+</svg>

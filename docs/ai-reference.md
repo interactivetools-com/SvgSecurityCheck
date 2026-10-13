@@ -150,13 +150,14 @@ Every code, its template, and what `detail` holds. Templates are `Violation::TEM
 | `not-utf8`                      | `SVG files must be UTF-8, this one is %s`                                               | `UTF-16 or UTF-32` or `declared as ISO-8859-1` (the declared encoding)                                                                                          |
 | `malformed-xml`                 | `The SVG is not well-formed XML: %s`                                                    | libxml2's message (may contain a newline) plus ` (line N)`, or `no root element within the first 64 KB`                                                         |
 | `doctype-not-allowed`           | `The DOCTYPE declaration is not allowed because %s`                                     | `it contains an internal DTD subset (entity declarations)`                                                                                                      |
-| `processing-instruction`        | `Processing instructions like <?%s?> are not allowed`                                   | the instruction's target, such as `xml-stylesheet`                                                                                                              |
+| `processing-instruction`        | `Processing instructions like <?%s?> are not allowed`                                   | the instruction's target, such as `xml-stylesheet`; for an `xpacket` marker holding `>`, the target and its text                                                |
 | `comment-not-allowed`           | `A comment starting with <!--%s is not allowed, HTML parsers close it there`            | `>` or `->`                                                                                                                                                     |
 | `cdata-not-allowed`             | `A CDATA section containing > is not allowed inside <%s>, HTML parsers end it there`    | `title` or `desc`                                                                                                                                               |
 | `root-not-svg`                  | `The root element must be <svg>, not <%s>`                                              | the root element's name as written                                                                                                                              |
 | `root-namespace-wrong`          | `The root <svg> element must declare xmlns="http://www.w3.org/2000/svg", but it has %s` | `none` or `xmlns="..."` with the namespace found                                                                                                                |
 | `element-not-allowed`           | `<%s> is not allowed in uploaded SVGs`                                                  | the element's local name, or its name as written when it has no namespace                                                                                       |
 | `namespace-not-allowed`         | `Elements from the XML namespace %s are not allowed`                                    | the namespace URI                                                                                                                                               |
+| `element-prefix-wrong`          | `<%s> has the wrong prefix: SVG elements take none, metadata elements need one`         | the element name as written, such as `svg:rect` or `p`                                                                                                          |
 | `event-handler`                 | `%s= event handler attributes are not allowed`                                          | the attribute name as written, such as `onload` or `xlink:onload`                                                                                               |
 | `attribute-not-allowed`         | `The %s attribute is not allowed`                                                       | the attribute name as written, such as `tabindex` or `xml:base`                                                                                                 |
 | `href-not-allowed`              | `href must reference an element in the same file (#id), not %s`                         | the value, or `(empty)`                                                                                                                                         |
@@ -190,20 +191,24 @@ anything found earlier in the file.
   error or warning. Includes an undefined namespace prefix and invalid UTF-8 bytes. libxml2's
   own limits apply: element depth 256, a single text node 10 MB.
 - **`processing-instruction`**: any `<?target ...?>` anywhere, including `<?xml-stylesheet?>`,
-  except the targets in `inertProcessingInstructions` (Adobe's `xpacket` XMP markers). The
-  `<?xml ...?>` declaration itself is not a processing instruction and is fine.
+  except the targets in `inertProcessingInstructions` (Adobe's `xpacket` XMP markers). An
+  `xpacket` marker whose text holds `>` rejects too: HTML parsers end the instruction at the
+  first `>`. The `<?xml ...?>` declaration itself is not a processing instruction and is fine.
 - **`comment-not-allowed`**: a comment whose content starts with `>` or `->` (written
   `<!-->` or `<!--->`). All other comments are fine.
 - **`cdata-not-allowed`**: a `<![CDATA[` section inside `<title>` or `<desc>` whose text
   contains `>`. HTML parsers use HTML rules inside those two elements and end the CDATA at
   the first `>`. CDATA anywhere else is fine, and so is `&gt;`. The detail is the element name.
 - **`root-not-svg`**: the root element's local name is not `svg`. Stops the check.
-- **`root-namespace-wrong`**: the root `<svg>` is not in `http://www.w3.org/2000/svg`. A
-  prefixed root (`<svg:svg xmlns:svg="...">`) is fine. Stops the check.
+- **`root-namespace-wrong`**: the root `<svg>` is not in `http://www.w3.org/2000/svg`. Stops
+  the check. A prefixed root (`<svg:svg xmlns:svg="...">`) gets `element-prefix-wrong`, see
+  [Rules: Elements and Namespaces](#rules-elements-and-namespaces).
 
 ## Rules: Elements and Namespaces
 
-For every element, by its namespace:
+An element whose local name is `script` (case-insensitive) rejects with `element-not-allowed`
+in any namespace and with any prefix, so script is rejected everywhere. Every other element,
+by its namespace:
 
 - **SVG namespace** (`http://www.w3.org/2000/svg`): the local name must be in the
   [elements allowlist](#allowlists), else `element-not-allowed`. Names are case-sensitive.
@@ -214,6 +219,12 @@ For every element, by its namespace:
   inspection, except that an `on*` attribute still rejects.
 - **Any other namespace**: `namespace-not-allowed` with the URI. This covers XHTML, MathML,
   XInclude, XML Events, and anything unknown.
+
+Then the prefix must match: an SVG element is written without one (`<rect>`) and an
+inert-namespace element with one (`<rdf:RDF>`), else `element-prefix-wrong` with the name as
+written. HTML parsers ignore `xmlns` and read an element by the name as written, so
+`<svg:svg>` is not SVG to them and `<p xmlns="http://ns.adobe.com/x">` is an HTML `<p>`.
+Design tools always write it this way.
 
 Not allowed on purpose, so never add them to a file to "fix" a rejection: `script`,
 `foreignObject`, `handler`, `listener`, `iframe`, `embed`, `font` (and the other SVG font
@@ -381,8 +392,8 @@ unicode-bidi vector-effect visibility white-space word-spacing writing-mode
 <!-- /rules:namespacedAttributes -->
 
 **`inertNamespaces`**: elements and attributes in these pass without inspection (except
-`on*`). Matched by prefix, so every namespace under `http://ns.adobe.com/` or
-`http://purl.org/dc/` counts.
+`on*`, a `script` element, and an element written without a prefix). Matched by the start of
+the URI, so every namespace under `http://ns.adobe.com/` or `http://purl.org/dc/` counts.
 
 <!-- rules:inertNamespaces -->
 ```text
@@ -489,9 +500,11 @@ unknown elements although Chrome would tolerate them.
   `(empty)`.
 - **Not checked:** whether a `#id` target exists, the file extension, the MIME type, file
   size, CSS selectors and properties, and references made through CSS classes.
-- **Serving an accepted file:** it is safe to open directly with no special headers.
-  `X-Content-Type-Options: nosniff` and `Content-Security-Policy: sandbox` add a second
-  layer in case a rule is ever bypassed. Refuse `.svgz` and HTML uploads at the extension
+- **Serving an accepted file:** it is safe to open directly with no special headers, and no
+  script runs even if it is served as `text/html`: the prefix, comment, CDATA and
+  processing-instruction rules close the places where an HTML parser reads the file
+  differently from XML. `X-Content-Type-Options: nosniff` and
+  `Content-Security-Policy: sandbox` add a second layer in case a rule is ever bypassed. Refuse `.svgz` and HTML uploads at the extension
   check; this library does not look at either.
 - **Not for inline SVG.** An accepted file is safe to serve as its own document or through
   `<img>`. Pasting SVG source into an HTML page is a different threat model (the page's

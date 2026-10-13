@@ -9,10 +9,10 @@ use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * Which elements get through: the SVG allowlist, the elements left off it on
- * purpose, elements in other XML namespaces, and the design-tool namespaces that
- * pass without inspection.
+ * purpose, elements in other XML namespaces, prefixes, and the design-tool
+ * namespaces that pass without inspection.
  *
- * Codes: element-not-allowed, namespace-not-allowed.
+ * Codes: element-not-allowed, namespace-not-allowed, element-prefix-wrong.
  */
 class ElementsTest extends SvgSecurityCheckTestCase
 {
@@ -102,6 +102,42 @@ class ElementsTest extends SvgSecurityCheckTestCase
     public function testUnboundPrefixIsReportedAsWritten(): void
     {
         $this->assertRejects($this->svg('<foo:bar/>'), 'element-not-allowed', 'foo:bar');
+    }
+
+    //endregion
+    //region Prefixes
+
+    /** An HTML parser ignores xmlns and goes by the name as written, so the prefix has to match what the element is. */
+    #[DataProvider('wrongPrefixProvider')]
+    public function testWrongPrefixRejected(string $svg, string $detail): void
+    {
+        $this->assertRejects($svg, 'element-prefix-wrong', $detail);
+    }
+
+    public static function wrongPrefixProvider(): array
+    {
+        $svgNs = self::SVG_NS;
+        return [
+            'prefixed root'               => ["<svg:svg xmlns:svg=\"$svgNs\"><svg:g><![CDATA[><img src=x onerror=alert(1)>]]></svg:g></svg:svg>", 'svg:svg'],
+            'prefixed svg element'        => ["<svg xmlns=\"$svgNs\"><s:rect xmlns:s=\"$svgNs\"/></svg>", 's:rect'],
+            'metadata element, no prefix' => ["<svg xmlns=\"$svgNs\"><p xmlns=\"http://ns.adobe.com/x\">text</p></svg>", 'p'],
+        ];
+    }
+
+    /** Script is rejected in every namespace, even where nothing would run it. */
+    #[DataProvider('scriptAnywhereProvider')]
+    public function testScriptRejectedInAnyNamespace(string $body, string $detail): void
+    {
+        $this->assertRejects($this->svg($body), 'element-not-allowed', $detail);
+    }
+
+    public static function scriptAnywhereProvider(): array
+    {
+        return [
+            'metadata namespace, no prefix' => ['<script xmlns="http://ns.adobe.com/x">alert(1)</script>', 'script'],
+            'metadata namespace, prefixed'  => ['<x:script xmlns:x="http://ns.adobe.com/x"/>', 'x:script'],
+            'svg namespace, prefixed'       => ['<s:script xmlns:s="http://www.w3.org/2000/svg"/>', 's:script'],
+        ];
     }
 
     //endregion

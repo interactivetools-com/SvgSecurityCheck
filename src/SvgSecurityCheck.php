@@ -476,6 +476,10 @@ final class SvgSecurityCheck
                 case XMLReader::PI:
                     if (!in_array($reader->name, self::INERT_PROCESSING_INSTRUCTIONS, true)) {
                         $this->fail('processing-instruction', self::excerpt($reader->name));
+                    } elseif (str_contains($reader->value, '>')) {
+                        // an HTML parser ends <?...> at the first >, so the rest would be live markup if the
+                        // file were ever served as text/html
+                        $this->fail('processing-instruction', self::excerpt("$reader->name $reader->value"));
                     }
                     break;
             }
@@ -502,6 +506,10 @@ final class SvgSecurityCheck
         $element   = $reader->localName;
         $inert     = self::isInertNamespace($namespace);
 
+        if (strcasecmp($element, 'script') === 0) {   // any namespace: <x:script> runs nothing, but "no script anywhere" is a simpler rule to rely on
+            $this->fail('element-not-allowed', self::excerpt($reader->name));
+            return;
+        }
         if ($namespace === self::SVG_NS) {
             if (!in_array($element, self::ELEMENTS, true)) {
                 $this->fail('element-not-allowed', self::excerpt($element));
@@ -512,6 +520,12 @@ final class SvgSecurityCheck
             return;
         } elseif (!$inert) {
             $this->fail('namespace-not-allowed', self::excerpt($namespace));
+            return;
+        }
+        // an HTML parser ignores xmlns and reads an element by its name as written, so <svg:svg> is not SVG
+        // to it and <p xmlns="http://ns.adobe.com/x"> is an HTML <p>
+        if (($reader->prefix === '') !== ($namespace === self::SVG_NS)) {
+            $this->fail('element-prefix-wrong', self::excerpt($reader->name));
             return;
         }
 

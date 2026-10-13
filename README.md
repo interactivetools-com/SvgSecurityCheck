@@ -76,7 +76,9 @@ SvgSecurityCheck::rules();             // the allowlists, for reading; the rules
 ## What It Blocks
 
 - **Script.** The `<script>` element, every `on*` attribute, `javascript:` URLs and
-  `<foreignObject>`: a browser runs them the moment the file is opened directly.
+  `<foreignObject>`: a browser runs them the moment the file is opened directly. XML that an
+  HTML parser reads differently is rejected too, so no script runs even if the file is served
+  as `text/html`.
 - **Outside resources.** `href` must be `#id`, or an embedded `data:` image on `<image>` and
   `<feImage>`. `url()` must be `#id`, or an embedded font in CSS. CSS `@import`, `image()`,
   `image-set()` and `<?xml-stylesheet?>` are rejected. An outside load lets another server
@@ -94,9 +96,6 @@ SvgSecurityCheck::rules();             // the allowlists, for reading; the rules
   uploads yourself.
 - **Renderer bugs.** An accepted file is still parsed by libxml2, a browser, or ImageMagick.
   Keep the rasterizer patched.
-- **Files served as `text/html`.** A passing file is safe as `image/svg+xml`, with or without
-  the two extra headers. Served as `text/html`, or with no `Content-Type`, it is parsed as a
-  page.
 
 ## When You Might Not Want SvgSecurityCheck
 

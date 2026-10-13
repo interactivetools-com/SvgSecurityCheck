@@ -159,6 +159,7 @@ class StructureTest extends SvgSecurityCheckTestCase
             'inside the document'       => [$open . '<?php echo 1; ?></svg>', 'php'],
             'after the root element'    => [$open . '</svg><?done?>', 'done'],
             'target case matters'       => ['<?XPACKET begin=""?>' . $open . '</svg>', 'XPACKET'],
+            'xpacket holding >'         => ['<?xpacket a="><img src=x onerror=alert(1)>"?>' . $open . '</svg>', 'xpacket a="><img src=x onerror=alert(1)>"'],   // an HTML parser ends it at the first >
         ];
     }
 
@@ -264,7 +265,6 @@ class StructureTest extends SvgSecurityCheckTestCase
     public static function acceptedRootProvider(): array
     {
         return [
-            'prefixed svg'                 => ['<s:svg xmlns:s="http://www.w3.org/2000/svg"><s:rect width="1" height="1"/></s:svg>'],
             'extra namespace declarations' => ['<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"/>'],
             'nested svg'                   => ['<svg xmlns="http://www.w3.org/2000/svg"><svg x="10" width="5" height="5"/></svg>'],
             'illustrator root attributes'  => ['<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 100 100" style="enable-background:new 0 0 100 100;" xml:space="preserve"/>'],

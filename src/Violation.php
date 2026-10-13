@@ -41,6 +41,7 @@ final class Violation
         'root-namespace-wrong'          => 'The root <svg> element must declare xmlns="http://www.w3.org/2000/svg", but it has %s',
         'element-not-allowed'           => '<%s> is not allowed in uploaded SVGs',
         'namespace-not-allowed'         => 'Elements from the XML namespace %s are not allowed',
+        'element-prefix-wrong'          => '<%s> has the wrong prefix: SVG elements take none, metadata elements need one',
         'event-handler'                 => '%s= event handler attributes are not allowed',
         'attribute-not-allowed'         => 'The %s attribute is not allowed',
         'href-not-allowed'              => 'href must reference an element in the same file (#id), not %s',
