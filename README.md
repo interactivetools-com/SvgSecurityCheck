@@ -16,10 +16,10 @@ it ([benchmarks](benchmarks/results.md)).
 
 ## Why Reject Instead of Clean
 
-A sanitizer hands back a changed file, and a logo that renders differently from what the
+A sanitizer returns a changed file, and a logo that renders differently from what the
 designer exported is a support ticket nobody can explain. SvgSecurityCheck never rewrites the
 file: a rejection with a reason costs a re-export, and a cleaned file that still holds something
-the filter did not know about costs an XSS. Elements, attributes, namespaces, URL forms and CSS
+the sanitizer did not know about costs an XSS. Elements, attributes, namespaces, URL forms and CSS
 functions are all checked against allowlists, so a new one is rejected until it is added.
 
 ## Documentation
@@ -28,7 +28,7 @@ Full docs ([browse on GitHub](https://github.com/interactivetools-com/SvgSecurit
 
 - [Error codes and fixes](docs/errors.md) - every message, and what to change in the file or the design tool
 - [AI reference](docs/ai-reference.md) - the complete API and every rule in one file, written for AI coding assistants
-- [Benchmarks](benchmarks/results.md) - check times for files from 1 KB to 50 MB, hostile files and 5,600 real files, next to enshrined/svg-sanitize
+- [Benchmarks](benchmarks/results.md) - check times for files from 1 KB to 50 MB, hostile files and real files from public icon sets, test suites and Wikimedia Commons, next to enshrined/svg-sanitize
 - [Changelog](CHANGELOG.md)
 
 ## Quick Start
@@ -46,7 +46,7 @@ use Itools\SvgSecurityCheck\SvgSecurityCheck;
 $result = SvgSecurityCheck::checkFile($_FILES['logo']['tmp_name']);   // nothing throws: a missing path is a rejection too
 if (!$result->ok) {
     foreach ($result->errors as $violation) {
-        echo htmlspecialchars($violation->message), "<br>";   // <script> is not allowed in uploaded SVGs
+        echo htmlspecialchars($violation->message), "<br>";           // <script> is not allowed in uploaded SVGs
     }
     exit;
 }
@@ -61,42 +61,47 @@ The rest of the API:
 
 ```php
 $result->ok;                           // true when nothing was found
-$result->errors;                       // Violation[], one per distinct problem, in file order
+$result->errors;                       // Violation[], one per distinct problem, in the order found
 $violation->code;                      // 'element-not-allowed', stable across releases, so switch on it
 $violation->detail;                    // 'script', text from the file, so encode it before output
 $violation->message;                   // '<script> is not allowed in uploaded SVGs'
 $violation->template;                  // '<%s> is not allowed in uploaded SVGs', for translation with Violation::TEMPLATES
 SvgSecurityCheck::checkString($svg);   // the same check on SVG source in a string
-SvgSecurityCheck::rules();             // the allowlists, for reading; the rules have no options
+SvgSecurityCheck::rules();             // the allowlists as arrays; no option adds to them
+SvgSecurityCheck::$maxErrors = 100;    // the size limits are public static properties
 ```
 
 ## What It Blocks
 
 - **Script.** The `<script>` element, every `on*` attribute, `javascript:` URLs and
-  `<foreignObject>`: a browser runs them the moment the file is opened directly. XML that an
-  HTML parser reads differently is rejected too, so no script runs even if the file is served
-  as `text/html`.
-- **Outside resources.** `href` must be `#id`, or an embedded `data:` image on `<image>` and
-  `<feImage>`. `url()` must be `#id`, or an embedded font in CSS. CSS functions and at-rules
-  not on a list, such as `image-set()` and `@import`, are rejected, and so is
-  `<?xml-stylesheet?>`. An outside load lets another server log who opened the file.
+  `<foreignObject>` (which holds HTML inside the SVG) are rejected, since a browser runs them
+  when the file is opened directly. XML that an HTML parser reads differently is rejected too,
+  so no script runs even if the file is served as `text/html`.
+- **Outside resources.** Every `href` must be a same-file reference (`#id`), or an embedded
+  `data:` image on `<image>` and `<feImage>` (a filter step that draws an image). Every `url()`
+  must be `#id`, or an embedded font in CSS. CSS functions and at-rules not on a list, such
+  as `image-set()` and `@import`, are rejected, and so is `<?xml-stylesheet?>`. An outside
+  load lets another server log who opened the file.
 - **Parser and renderer hangs.** DTD entity declarations are rejected: an entity can expand to
-  markup no other rule sees, or to gigabytes of text. So are reference loops, and `<use>` or
-  pattern chains where a few dozen references render billions of elements, which browsers cap
-  and server-side rasterizers do not.
+  markup no other rule sees, or to gigabytes of text. So are reference loops, and chains of
+  `<use>` (which draws a copy of another element) or `<pattern>` where a few dozen references
+  render billions of elements, which browsers cap and server-side rasterizers do not.
 
 ## What It Does Not Check
 
-- **File size.** The file is streamed, so a huge upload is checked in a few MB of memory. Cap
-  the size at upload time.
+- **File size.** The file is streamed, so memory does not grow with its size, except for an
+  embedded `data:` image, which is held whole while it is checked. Cap the size at upload time.
 - **Extension and MIME type.** Only the bytes are read. Refuse `.svgz`, `.html` and `.xml`
   uploads yourself.
 - **Renderer bugs.** An accepted file is still parsed by libxml2, a browser, or ImageMagick.
   Keep the rasterizer patched.
+- **References set in CSS.** A `<style>` rule such as `.a { fill: url(#p) }` is not counted,
+  so a `<pattern>` chain built from class rules is accepted. Give server-side rasterizing a
+  time limit.
 
 ## Additional Protection
 
-A file that passes is safe to serve with only `Content-Type: image/svg+xml`. Two more headers
+An accepted file is safe to serve with only `Content-Type: image/svg+xml`. Two more headers
 add a second layer in case a rule is ever bypassed:
 
 ```php
@@ -116,10 +121,9 @@ If Apache or nginx serves the upload folder directly, set them there for `.svg` 
 
 ## Security
 
-Elements, attributes, namespaces, URL forms and CSS functions are allowlists, so one that
-browsers add later is rejected until it is added here. What the rules cannot anticipate is a browser changing how it
-handles something already allowed. Update when a new release comes out, and report a file that
-gets through as described in [SECURITY.md](SECURITY.md).
+Because every list is an allowlist, what the rules cannot anticipate is a browser changing how
+it handles something already allowed. Update when a new release comes out, and report a file
+that gets through as described in [SECURITY.md](SECURITY.md).
 
 ## Related Libraries
 
