@@ -23,8 +23,9 @@ use RecursiveIteratorIterator;
  * misses, and the corpus when it is present) go into tests/Support/chrome-cross-check.html as
  * JSON, the page parses each with DOMParser, and the dumped DOM carries the findings back.
  *
- * Chrome is found through CHROME_PATH, the usual names on PATH, or the install locations. Without
- * it the test fails in CI, where every runner but Linux on ARM has Chrome, and skips elsewhere.
+ * Chrome is found through CHROME_PATH, the usual names on PATH, or the install locations. In CI
+ * the test runs on the Linux jobs only, and fails there without Chrome except on ARM, where Google
+ * ships none. Elsewhere it skips when Chrome is missing.
  */
 final class ChromeCrossCheckTest extends SvgSecurityCheckTestCase
 {
@@ -56,6 +57,9 @@ final class ChromeCrossCheckTest extends SvgSecurityCheckTestCase
 
     public function testChromeFindsNothingTheCheckMissed(): void
     {
+        if (getenv('CI') && PHP_OS_FAMILY !== 'Linux') {
+            $this->markTestSkipped('runs on the Linux CI jobs only: Chrome parses the same on every platform');
+        }
         $chrome = self::chrome();
         if ($chrome === null) {
             $message           = 'Chrome not found: install it or set CHROME_PATH to run the browser cross-check';
