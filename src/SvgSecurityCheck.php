@@ -160,7 +160,7 @@ final class SvgSecurityCheck
     private const CSS_FUNCTIONS = [
         'url', 'format',                                                                          // references, @font-face
         'matrix', 'translate', 'translatex', 'translatey', 'scale', 'scalex', 'scaley', 'rotate', 'skew', 'skewx', 'skewy',
-        'rgb', 'rgba', 'hsl', 'hsla', 'icc-color',                                                // colors
+        'rgb', 'rgba', 'hsl', 'hsla', 'hwb', 'lab', 'lch', 'oklab', 'oklch', 'color', 'color-mix', 'light-dark', 'icc-color',   // colors
         'blur', 'brightness', 'contrast', 'drop-shadow', 'grayscale', 'hue-rotate', 'invert', 'opacity', 'saturate', 'sepia',
         'circle', 'ellipse', 'inset', 'polygon', 'path', 'rect',                                  // shapes, for clip-path and clip
         'calc', 'var', 'min', 'max', 'clamp',                                                     // math and custom properties
@@ -185,12 +185,14 @@ final class SvgSecurityCheck
     private const UNSCANNABLE = 'text that could not be scanned';
 
     // CSS the allowlists cannot catch: a backslash (an escape could spell any name) and the two properties
-    // old Firefox and IE used to attach code, whose value is an allowed url(#id)
-    private const CSS_BANNED = '/\\\\|-moz-binding|behavior\s*+:/i';
+    // old Firefox and IE used to attach code, whose value is an allowed url(#id). behavior must be the whole
+    // property name, so scroll-behavior passes and IE's _behavior, *behavior and -ms-behavior still reject.
+    private const CSS_BANNED = '/\\\\|-moz-binding|(?<![a-z0-9-])(?:-ms-)?behavior\s*+:/i';
 
     // a CSS function name and its (: rgb(, image-set(, --custom(. The lookbehind makes it a whole name, so in
-    // x-rotate( the name is x-rotate. Possessive, so a long name costs one pass.
-    private const CSS_FUNCTION = '/(?<![\w-])(-{0,2}+[a-z_][\w-]*+)\(/i';
+    // x-rotate( the name is x-rotate, and a name after @ is an at-rule, so minified @media( is not a function.
+    // Possessive, so a long name costs one pass.
+    private const CSS_FUNCTION = '/(?<![\w@-])(-{0,2}+[a-z_][\w-]*+)\(/i';
 
     // a CSS at-rule name: @media, @import
     private const CSS_AT_RULE = '/@(-?+[a-z_][\w-]*+)/i';

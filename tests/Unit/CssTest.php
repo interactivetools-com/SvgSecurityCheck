@@ -39,6 +39,9 @@ class CssTest extends SvgSecurityCheckTestCase
             'fragment url, quoted'     => ['.a{fill:url(\'#grad\');filter:url( "#f" )}'],
             'keyframes'                => ['@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}} .a{animation:spin 1s linear infinite}'],
             'media query'              => ['@media (prefers-color-scheme: dark){.a{fill:#fff}}'],
+            'media query, minified'    => ['@media(prefers-color-scheme:dark){.a{fill:#fff}}'],   // media( is the at-rule, not a function
+            'supports, minified'       => ['@supports(display:grid){.a{fill:#fff}}'],
+            'scroll-behavior'          => ['svg{scroll-behavior:smooth;overscroll-behavior:none}'],   // behavior: is banned only as a whole property name
             'font-face with ttf'       => ['@font-face{font-family:F;src:url(data:font/ttf;base64,AAAA) format("truetype")}'],
             'font-face with woff2'     => ['@font-face{font-family:F;src:url("data:font/woff2;base64,AAAA")}'],
             'font-face, no mime type'  => ['@font-face{font-family:F;src:url(data:;base64,AAAA)}'],
@@ -104,6 +107,9 @@ class CssTest extends SvgSecurityCheckTestCase
             '-moz-binding'              => ['.a{-moz-binding:url(#x)}', '-moz-binding'],
             'behavior'                  => ['.a{behavior:url(#x)}', 'behavior:'],
             'behavior with space'       => ['.a{behavior : url(#x)}', 'behavior :'],
+            'behavior, underscore hack' => ['.a{_behavior:url(#x)}', 'behavior:'],
+            'behavior, star hack'       => ['.a{*behavior:url(#x)}', 'behavior:'],
+            '-ms-behavior'              => ['.a{-ms-behavior:url(#x)}', '-ms-behavior:'],
             'external url'              => ['svg{background-image:url(https://evil.example/x.png)}', 'url(https://evil.example/x.png'],
             'external url, quoted'      => ['svg{background-image:url("https://evil.example/x.png")}', 'url("https://evil.example/x.png"'],
             'relative url'              => ['.a{fill:url(p.svg#a)}', 'url(p.svg#a'],
@@ -164,7 +170,7 @@ class CssTest extends SvgSecurityCheckTestCase
             'cross-fade, loads images' => ['cross-fade(url(#a), url(#b))', 'cross-fade('],
             'element, renders others'  => ['element(#a)', 'element('],
             'prefixed image-set'       => ['-webkit-image-set("x.png" 1x)', '-webkit-image-set('],
-            'newer color'              => ['oklch(0.5 0.1 200)', 'oklch('],
+            'paint, runs a worklet'    => ['paint(x)', 'paint('],
             'attr'                     => ['attr(data-x)', 'attr('],
             'custom function'          => ['--load(x)', '--load('],
             'longer name'              => ['x-rotate(1)', 'x-rotate('],   // a whole name, not the rotate at its end

@@ -300,11 +300,14 @@ attribute value except `href`, `data-*` and `aria-*`. All matching is case-insen
 1. **Banned tokens**, which the allowlists cannot catch: a backslash `\` (an escape could
    spell any name), and `-moz-binding` and `behavior:` (whitespace before the colon allowed),
    the properties old Firefox and IE used to attach code, whose `url(#id)` value would
-   otherwise pass. Each rejects with `css-not-allowed` and the token as the detail.
+   otherwise pass. `behavior` counts only as a whole property name, with or without `-ms-`,
+   so `scroll-behavior:` passes and `_behavior:` rejects. Each rejects with
+   `css-not-allowed` and the token as the detail.
 2. **Function names.** Every name directly followed by `(` must be in
    [`cssFunctions`](#allowlists), else `css-not-allowed` with the name and `(` as the detail
-   (`image-set(`, `oklch(`). Outside resources load through functions, so one a browser adds
-   later is rejected until it is listed.
+   (`image-set(`, `paint(`). A name right after `@` is an at-rule, so `@media(` is checked by
+   rule 3. Outside resources load through functions, so one a browser adds later is rejected
+   until it is listed.
 3. **At-rules.** Every `@name` must be in [`cssAtRules`](#allowlists), else `css-not-allowed`
    with the at-rule as the detail (`@import`).
 4. `url(` whose target, after optional whitespace and quote, does not start with `#`,
@@ -463,9 +466,10 @@ xpacket
 <!-- rules:cssFunctions -->
 ```text
 url format matrix translate translatex translatey scale scalex scaley rotate skew skewx skewy rgb
-rgba hsl hsla icc-color blur brightness contrast drop-shadow grayscale hue-rotate invert opacity
-saturate sepia circle ellipse inset polygon path rect calc var min max clamp cubic-bezier steps not
-is where has nth-child nth-last-child nth-of-type nth-last-of-type lang dir
+rgba hsl hsla hwb lab lch oklab oklch color color-mix light-dark icc-color blur brightness contrast
+drop-shadow grayscale hue-rotate invert opacity saturate sepia circle ellipse inset polygon path
+rect calc var min max clamp cubic-bezier steps not is where has nth-child nth-last-child nth-of-type
+nth-last-of-type lang dir
 ```
 <!-- /rules:cssFunctions -->
 
