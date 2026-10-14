@@ -80,14 +80,15 @@ final class Result
 
 `errors` holds one `Violation` per distinct problem (deduplicated by code and detail), in the
 order found, capped at 50. Prolog problems (`not-svg`, `not-utf8`, `doctype-not-allowed`,
-`file-unreadable`) stop the check, so they arrive alone. `malformed-xml`, when present, is
-always the last entry: nothing after a parse error is checked.
+`file-unreadable`, and `malformed-xml` when no root tag starts within the first 64 KB) stop
+the check, so they arrive alone. `malformed-xml`, when present, is always the last entry:
+nothing after a parse error is checked.
 
 ### Violation
 
 ```php
 $violation->code;       // 'element-not-allowed' - stable across releases
-$violation->detail;     // 'script' - plain text taken from the file, at most 60 characters plus '...'
+$violation->detail;     // 'script' - plain text taken from the file, values cut at 60 characters plus '...'
 $violation->template;   // '<%s> is not allowed in uploaded SVGs'
 $violation->message;    // '<script> is not allowed in uploaded SVGs'
 Violation::TEMPLATES;   // every message template keyed by code, one %s each
@@ -145,7 +146,7 @@ Every code, its template, and what `detail` holds. Templates are `Violation::TEM
 | `file-unreadable`               | `Cannot read file %s`                                                                   | the file's basename                                                                                                                                             |
 | `not-svg`                       | `This is not an SVG file: it starts with %s`                                            | the first 20 bytes, control and non-ASCII bytes escaped, or `nothing (the file is empty)`                                                                       |
 | `not-utf8`                      | `SVG files must be UTF-8, this one is %s`                                               | `UTF-16 or UTF-32` or `declared as ISO-8859-1` (the declared encoding)                                                                                          |
-| `malformed-xml`                 | `The SVG is not well-formed XML: %s`                                                    | libxml2's message (may contain a newline) plus ` (line N)`, or `no root element within the first 64 KB`                                                         |
+| `malformed-xml`                 | `The SVG is not well-formed XML: %s`                                                    | libxml2's message plus ` (line N)`, or `no root element within the first 64 KB`                                                                                 |
 | `doctype-not-allowed`           | `The DOCTYPE declaration is not allowed because %s`                                     | `it contains an internal DTD subset (entity declarations)`                                                                                                      |
 | `processing-instruction`        | `Processing instructions like <?%s?> are not allowed`                                   | the instruction's target, such as `xml-stylesheet`; for an `xpacket` marker holding `>`, the target and its text                                                |
 | `comment-not-allowed`           | `A comment starting with <!--%s is not allowed, HTML parsers close it there`            | `>` or `->`                                                                                                                                                     |
@@ -153,7 +154,7 @@ Every code, its template, and what `detail` holds. Templates are `Violation::TEM
 | `element-in-title-or-desc`      | `<title> and <desc> may hold only text, not <%s>`                                       | the element name as written, such as `style` or `a`                                                                                                             |
 | `root-not-svg`                  | `The root element must be <svg>, not <%s>`                                              | the root element's name as written                                                                                                                              |
 | `root-namespace-wrong`          | `The root <svg> element must declare xmlns="http://www.w3.org/2000/svg", but it has %s` | `none` or `xmlns="..."` with the namespace found                                                                                                                |
-| `element-not-allowed`           | `<%s> is not allowed in uploaded SVGs`                                                  | the element's local name, or its name as written when it has no namespace                                                                                       |
+| `element-not-allowed`           | `<%s> is not allowed in uploaded SVGs`                                                  | the element's local name, or its name as written when it has no namespace or is a `script`                                                                      |
 | `namespace-not-allowed`         | `Elements from the XML namespace %s are not allowed`                                    | the namespace URI                                                                                                                                               |
 | `element-prefix-wrong`          | `<%s> has the wrong prefix: SVG elements take none, metadata elements need one`         | the element name as written, such as `svg:rect` or `p`                                                                                                          |
 | `event-handler`                 | `%s= event handler attributes are not allowed`                                          | the attribute name as written, such as `onload` or `xlink:onload`                                                                                               |
@@ -167,7 +168,15 @@ Every code, its template, and what `detail` holds. Templates are `Violation::TEM
 | `css-not-allowed`               | `CSS containing %s is not allowed`                                                      | the token, function or at-rule as matched (`\`, `image-set(`, `@import`, `url(https://example.com/a.css`) or `more than 1,000,000 bytes`                        |
 | `animation-target-not-allowed`  | `Animating the %s attribute is not allowed`                                             | the `attributeName` value                                                                                                                                       |
 
-Values longer than 60 characters are cut at 60 and end with `...`.
+Values taken from the file are cut at 60 characters and end with `...`. Control characters
+and invalid bytes are escaped after the cut, so they add length, and three details are not
+cut: the `file-unreadable` basename, an embedded SVG's inner message, and the ` (line N)`
+after a `malformed-xml` message.
+
+A regex that reaches PHP's PCRE limits on hostile input rejects instead of passing. The
+detail is then `declared in a form that could not be read` (`not-utf8`),
+`could not be counted` (`reference-expansion-too-large`) or `text that could not be scanned`
+(`css-not-allowed`).
 
 ## Rules: Structure
 
@@ -246,9 +255,10 @@ For every attribute on an element in the SVG namespace or an inert namespace, in
 3. An attribute in an inert namespace passes. It always has a prefix, and step 1 keeps that
    prefix from being `xlink`, so no parser reads it.
 4. On an SVG element, an unprefixed name must be in the [attributes allowlist](#allowlists)
-   or start with `data-` or `aria-`. A prefixed name must be one of `xml:lang`, `xml:space`,
-   `xlink:href`, `xlink:title`. Anything else rejects with `attribute-not-allowed`. Names
-   are case-sensitive. On an inert element this step is skipped; step 5 still runs.
+   or start with `data-` or `aria-`. A prefixed name must be `lang` or `space` in the XML
+   namespace or `href` or `title` in the XLink namespace, matched by namespace, not by the
+   prefix as written (`xml:lang`, `xlink:href`). Anything else rejects with
+   `attribute-not-allowed`. Names are case-sensitive. On an inert element this step is skipped; step 5 still runs.
 5. The value is then checked: `href` and `xlink:href` per [URLs](#rules-urls), `style` per
    [CSS](#rules-css), every other value for `url(` per [URLs](#rules-urls), and on animation
    elements per [Animation](#rules-animation).
@@ -307,7 +317,9 @@ attribute value except `href`, `data-*` and `aria-*`. All matching is case-insen
 So `fill: url(#p)` passes, `@font-face { src: url(data:font/woff2;base64,...) }` passes
 anywhere in the CSS, and `background: url(https://...)`, `@import`, `image-set(...)` and any
 escape sequence reject. Comments and strings are not skipped: `content: "alert(1)"` rejects
-for `alert(`. Selectors, properties, `:hover`, `:visited` and `!important` are not checked.
+for `alert(`. Property names, `:hover`, `:visited` and `!important` are not checked. A
+function in a selector (`:not()`, `:nth-child()`) goes through the function allowlist like
+any other, so `:host()` rejects.
 
 ## Rules: Animation
 
@@ -445,8 +457,8 @@ xpacket
 `png`, `jpeg`, `jpg`, `gif`, `webp`, `svg+xml`
 <!-- /rules:dataImageTypes -->
 
-**`cssFunctions`**: function names allowed in CSS and presentation attributes, matched
-case-insensitively. See [Rules: CSS](#rules-css).
+**`cssFunctions`**: function names allowed in CSS and in every attribute value except
+`href`, `data-*` and `aria-*`, matched case-insensitively. See [Rules: CSS](#rules-css).
 
 <!-- rules:cssFunctions -->
 ```text
@@ -533,7 +545,8 @@ unknown elements although Chrome would tolerate them.
 - **`href` is trimmed before checking**, so `href="  #a"` passes; `href=""` rejects with
   `(empty)`.
 - **Not checked:** whether a `#id` target exists, the file extension, the MIME type, file
-  size, CSS selectors and properties, and references made through CSS classes.
+  size, CSS property names and selectors without functions, and references made through CSS
+  classes.
 - **Serving an accepted file:** it is safe to open directly with no special headers, and no
   script runs and nothing loads from outside even if it is served as `text/html`: the
   element prefix, `xmlns:xlink`, comment, CDATA, processing-instruction and text-only

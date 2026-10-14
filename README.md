@@ -116,8 +116,8 @@ If Apache or nginx serves the upload folder directly, set them there for `.svg` 
 
 ## Security
 
-Every rule is an allowlist, so an element, attribute or CSS function that browsers add later is
-rejected until it is added here. What the rules cannot anticipate is a browser changing how it
+Elements, attributes, namespaces, URL forms and CSS functions are allowlists, so one that
+browsers add later is rejected until it is added here. What the rules cannot anticipate is a browser changing how it
 handles something already allowed. Update when a new release comes out, and report a file that
 gets through as described in [SECURITY.md](SECURITY.md).
 

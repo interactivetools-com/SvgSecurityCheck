@@ -27,10 +27,11 @@ use const LIBXML_NONET, PHP_OS_FAMILY;
  *     $result = SvgSecurityCheck::checkString($svg);   // same check on a string
  *     $rules  = SvgSecurityCheck::rules();             // the allowlists, for docs and debugging
  *
- * Every rule is an allowlist except CSS, which is scanned for a short list of tokens.
- * Elements, attributes, XML namespaces, URL forms and animation targets not on a list are
- * rejected, so a new browser feature is closed until it is added here. docs/errors.md has the fix for each code and docs/ai-reference.md every rule
- * and list.
+ * Elements, attributes, XML namespaces, URL forms, animation targets, CSS functions and CSS
+ * at-rules not on a list are rejected, so a new browser feature is closed until it is added
+ * here. On top of the lists, on* attributes, script in any namespace and three CSS tokens
+ * (a backslash, -moz-binding, behavior:) are banned by name. docs/errors.md has the fix for
+ * each code and docs/ai-reference.md every rule and list.
  */
 final class SvgSecurityCheck
 {
@@ -115,9 +116,10 @@ final class SvgSecurityCheck
     ];
 
     /**
-     * Namespaces browsers ignore: design-tool and metadata vocabularies. Elements and attributes
-     * in them pass without inspection, except on* attributes. Matched by prefix, since Adobe
-     * alone uses dozens of namespaces under one host.
+     * Namespaces browsers ignore: design-tool and metadata vocabularies. Element and attribute
+     * names in them pass without a name check, but on* attributes and script still reject, the
+     * element must be written with a prefix, and attribute values get the href, CSS and url()
+     * checks. Matched by prefix, since Adobe alone uses dozens of namespaces under one host.
      * @noinspection HttpUrlsUsage
      */
     private const INERT_NAMESPACES = [
@@ -150,7 +152,8 @@ final class SvgSecurityCheck
     private const ANIMATION_TARGETS_EXCLUDED = ['href', 'style', 'class', 'id'];   // allowed in the file but not as targets: they change URLs, CSS and references after the check
 
     /**
-     * CSS functions allowed in <style>, style= and presentation attributes, lowercase. Outside
+     * CSS functions allowed in <style>, style= and every other attribute value except href,
+     * data-* and aria-*, lowercase. Outside
      * resources load through functions (url(), image-set()), so a function a browser adds later
      * is rejected until it is listed here. url() targets are checked on their own.
      */
@@ -297,7 +300,7 @@ final class SvgSecurityCheck
     }
 
     /**
-     * Runs the byte-level prolog check on the first 64 KB, then streams the document. $load
+     * Runs the byte-level prolog check on the first $prologLimit bytes, then streams the document. $load
      * points the reader at the source and runs only when the prolog gave no reason to stop,
      * so the parser never sees bytes the prolog rejected. When it returns false (a file
      * deleted or locked since checkFile() found it readable; a string never fails to load)
