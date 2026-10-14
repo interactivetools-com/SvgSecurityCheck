@@ -280,6 +280,7 @@ class UrlsTest extends SvgSecurityCheckTestCase
             'src() in mask'         => ['<rect mask="src(\'https://evil.example/m.png\')"/>', 'src('],
             'expression()'          => ['<rect width="expression(alert(1))"/>', 'expression('],
             'behavior'              => ['<rect fill="behavior:url(#x)"/>', 'behavior:'],
+            'behavior, long space'  => ['<rect fill="behavior' . str_repeat(' ', 100) . ':url(#x)"/>', 'behavior' . str_repeat(' ', 52) . '...'],
             'in an animation value' => ['<animate attributeName="mask" to="image-set(\'https://evil.example/m.png\' 1x)"/>', 'image-set('],
         ];
     }

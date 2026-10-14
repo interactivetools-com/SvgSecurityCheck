@@ -107,6 +107,7 @@ class CssTest extends SvgSecurityCheckTestCase
             '-moz-binding'              => ['.a{-moz-binding:url(#x)}', '-moz-binding'],
             'behavior'                  => ['.a{behavior:url(#x)}', 'behavior:'],
             'behavior with space'       => ['.a{behavior : url(#x)}', 'behavior :'],
+            'behavior, long whitespace' => ['.a{behavior' . str_repeat(' ', 100) . ':url(#x)}', 'behavior' . str_repeat(' ', 52) . '...'],
             'behavior, underscore hack' => ['.a{_behavior:url(#x)}', 'behavior:'],
             'behavior, star hack'       => ['.a{*behavior:url(#x)}', 'behavior:'],
             '-ms-behavior'              => ['.a{-ms-behavior:url(#x)}', '-ms-behavior:'],

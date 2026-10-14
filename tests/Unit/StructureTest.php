@@ -32,6 +32,12 @@ class StructureTest extends SvgSecurityCheckTestCase
         $this->assertSame('logo.svg', $result->errors[0]->detail);   // basename only: the message may end up in a page
     }
 
+    public function testMissingFileNameIsEscapedAsOneLine(): void
+    {
+        $detail = SvgSecurityCheck::checkFile("/no/such/dir/a\nb\xE9.svg")->errors[0]->detail;
+        $this->assertSame('a\nb\351.svg', $detail);   // a name from $_FILES['logo']['name'] is the visitor's
+    }
+
     public function testDirectory(): void
     {
         $this->assertSame('file-unreadable', SvgSecurityCheck::checkFile(sys_get_temp_dir())->errors[0]->code);
@@ -109,6 +115,17 @@ class StructureTest extends SvgSecurityCheckTestCase
     public function testPrologRejected(string $file, string $code, string $detail): void
     {
         $this->assertRejects($file, $code, $detail);
+    }
+
+    public function testNoRootDetailNamesTheLimitSet(): void
+    {
+        $default = SvgSecurityCheck::$prologLimit;
+        SvgSecurityCheck::$prologLimit = 128 * 1024;
+        try {
+            $this->assertRejects('<!-- never closed', 'malformed-xml', 'no root element within the first 128 KB');
+        } finally {
+            SvgSecurityCheck::$prologLimit = $default;
+        }
     }
 
     public static function rejectedPrologProvider(): array

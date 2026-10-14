@@ -184,10 +184,9 @@ fix to show the uploader for each code is in [errors.md](errors.md).
 | `animation-target-not-allowed`  | `Animating the %s attribute is not allowed`                                             | the `attributeName` value                                                                                                                 |
 
 Values taken from the file are cut at 60 characters and end with `...`. Control characters
-and invalid bytes are escaped after the cut, so they add length, and four details are not
-cut: the `file-unreadable` basename, an embedded SVG's inner message, the ` (line N)` after a
-`malformed-xml` message, and a banned CSS token (`behavior` keeps all the whitespace before
-its colon).
+and invalid bytes are escaped after the cut, so they add length, and three details are not
+cut: the `file-unreadable` basename, an embedded SVG's inner message, and the ` (line N)`
+after a `malformed-xml` message.
 
 A regex that reaches PHP's PCRE limits on hostile input rejects instead of passing. The
 detail is then `declared in a form that could not be read` (`not-utf8`),

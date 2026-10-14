@@ -8,7 +8,7 @@ use LibXMLError;
 use XMLReader;
 
 // import built-ins so calls resolve at compile time instead of per-call lookups; NamespacedCallsTest keeps this list exact
-use function addcslashes, array_key_last, array_keys, array_map, array_pop, array_push, array_values, base64_decode, basename, count, explode, file_get_contents, implode, in_array, is_file, is_readable, libxml_clear_errors, libxml_get_errors, libxml_use_internal_errors, min, number_format, preg_match, preg_match_all, rawurldecode, rawurlencode, str_contains, str_starts_with, strcasecmp, stripos, strlen, strpos, strrchr, strspn, strtolower, strval, substr, substr_compare, trim;
+use function addcslashes, array_key_last, array_keys, array_map, array_pop, array_push, array_values, base64_decode, basename, count, explode, file_get_contents, implode, in_array, intdiv, is_file, is_readable, libxml_clear_errors, libxml_get_errors, libxml_use_internal_errors, min, number_format, preg_match, preg_match_all, rawurldecode, rawurlencode, str_contains, str_starts_with, strcasecmp, stripos, strlen, strpos, strrchr, strspn, strtolower, strval, substr, substr_compare, trim;
 use const LIBXML_NONET, PHP_OS_FAMILY;
 
 /**
@@ -228,7 +228,7 @@ final class SvgSecurityCheck
     {
         $firstBytes = is_file($path) && is_readable($path) ? file_get_contents($path, false, null, 0, self::$prologLimit) : false;
         if ($firstBytes === false) {
-            return new Result([new Violation('file-unreadable', basename($path))]);
+            return new Result([new Violation('file-unreadable', self::escapeAsOneLine(basename($path)))]);
         }
         // @ because a failed open is reported in the Result, not as a PHP warning
         return (new self(0))->check($firstBytes, fn(XMLReader $reader) => @$reader->open(self::fileUri($path), null, LIBXML_NONET), basename($path));
@@ -328,11 +328,7 @@ final class SvgSecurityCheck
         if (count($this->errors) >= self::$maxErrors) {
             return;   // the read loop stops at the cap too, but one element can add several errors before it checks
         }
-        // one line of valid UTF-8 whatever the file held, so a log line or an error page can show it as is
-        $detail = addcslashes($detail, "\0..\37\177");
-        if (!preg_match('//u', $detail)) {
-            $detail = addcslashes($detail, "\200..\377");
-        }
+        $detail = self::escapeAsOneLine($detail);
         $this->errors["$code\0$detail"] ??= new Violation($code, $detail);
     }
 
@@ -400,7 +396,7 @@ final class SvgSecurityCheck
                 return true;   // the root start tag, or something the parser will report
             }
         }
-        $this->fail('malformed-xml', 'no root element within the first 64 KB');
+        $this->fail('malformed-xml', 'no root element within the first ' . intdiv(self::$prologLimit, 1024) . ' KB');
         return false;
     }
 
@@ -628,7 +624,7 @@ final class SvgSecurityCheck
             $isCssValue = !str_starts_with($attribute, 'data-') && !str_starts_with($attribute, 'aria-');
             if ($isCssValue) {
                 if (preg_match(self::CSS_BANNED, $value, $match) !== 0) {   // false (a PCRE limit) rejects too
-                    $this->fail('css-not-allowed', $match[0] ?? self::UNSCANNABLE);
+                    $this->fail('css-not-allowed', self::excerpt($match[0] ?? self::UNSCANNABLE));
                 }
                 if (str_contains($value, '(')) {   // no ( means no function, and most values (paths, colors, numbers) have none
                     $this->checkCssNames($value, self::CSS_FUNCTION, self::CSS_FUNCTIONS);
@@ -909,7 +905,7 @@ final class SvgSecurityCheck
     private function checkCss(string $css): void
     {
         if (preg_match(self::CSS_BANNED, $css, $match) !== 0) {   // false (a PCRE limit) rejects too
-            $this->fail('css-not-allowed', $match[0] ?? self::UNSCANNABLE);
+            $this->fail('css-not-allowed', self::excerpt($match[0] ?? self::UNSCANNABLE));
         }
         $this->checkCssNames($css, self::CSS_FUNCTION, self::CSS_FUNCTIONS);
         $this->checkCssNames($css, self::CSS_AT_RULE, self::CSS_AT_RULES);
@@ -969,6 +965,20 @@ final class SvgSecurityCheck
         preg_match('/^.{0,' . self::$maxDetailLength . '}/us', $value, $match);
         $start = $match[0] ?? substr($value, 0, self::$maxDetailLength);
         return strlen($start) < strlen($value) ? "$start..." : $start;
+    }
+
+    /**
+     * Escapes control characters as \n or \000, and bytes above 127 as \351 when the text is not
+     * valid UTF-8, so a detail never spans lines and always encodes as UTF-8. A log line or an
+     * error page can then show it as is.
+     */
+    private static function escapeAsOneLine(string $detail): string
+    {
+        $detail = addcslashes($detail, "\0..\37\177");
+        if (!preg_match('//u', $detail)) {
+            $detail = addcslashes($detail, "\200..\377");
+        }
+        return $detail;
     }
 
     //endregion
