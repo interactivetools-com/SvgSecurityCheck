@@ -46,6 +46,7 @@ class ElementsTest extends SvgSecurityCheckTestCase
             'iframe', 'object', 'embed', 'audio', 'video', 'link', 'meta', // html, loads things
             'font', 'font-face', 'font-face-uri', 'glyph', 'altGlyph',     // svg fonts, removed from browsers
             'tref', 'cursor', 'color-profile',                             // external references
+            'marker',                                                      // drawn again at every point of a line
             'Script',                                                      // xml is case-sensitive, so this is not <script> but it is still unknown
             'blink',                                                       // made up: unknown means rejected
         ];

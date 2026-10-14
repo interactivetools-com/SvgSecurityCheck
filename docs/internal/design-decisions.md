@@ -213,13 +213,19 @@ code for both since the fix is the same.
 
 - `<a href="#id">` and the animation elements are not references: linking to and animating
   an ancestor are both common and neither renders the target.
-- Content inside `defs`, `symbol`, `pattern`, `mask`, `marker`, `clipPath` and `filter`
+- Content inside `defs`, `symbol`, `pattern`, `mask`, `clipPath` and `filter`
   counts only when something references it, as in a renderer. A loop in an unused
   `<symbol>` is accepted.
 - References made through CSS selectors are not followed. `.st0 { fill: url(#gradient) }`
   is in nearly every Illustrator export, and following it would need selector matching to
   know which elements are inside which pattern. Known gap: a renderer's own cycle guard
   covers the loop case; the fan-out case needs class selectors written for the purpose.
+- `<marker>` is rejected rather than counted. Chrome draws a marker's content again at every
+  point of a line, and markers inside markers too, so a 70 KB file kept it busy for more
+  than five minutes. Counting that would mean reading every path's points, and a marker can
+  reach a path through an inherited attribute, `var()`, a `<style>` rule or an animation.
+  None of the real-world files in the corpus use one; an Inkscape arrowhead can be turned
+  into a plain path with Path → Stroke to Path.
 - The count is iterative, not recursive: a chain can be longer than the PHP call stack
   (Xdebug stops at 512 frames) and a 2,000-deep chain of single references is legal.
 

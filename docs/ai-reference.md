@@ -385,11 +385,15 @@ tabs, newlines and trailing spaces are dropped, and a percent-encoded `#id` is d
   same target inside the same `id` is one record. More than 100,000 records rejects with
   `need more than 100,000 records to track (ids and references)`, so memory stays at a few
   MB whatever the file does.
-- Content inside `<defs>`, `<symbol>`, `<pattern>`, `<mask>`, `<marker>`, `<clipPath>` and
-  `<filter>` counts only when something references it. A loop inside a `<symbol>` that
-  nothing uses is accepted.
+- Content inside `<defs>`, `<symbol>`, `<pattern>`, `<mask>`, `<clipPath>` and `<filter>`
+  counts only when something references it. A loop inside a `<symbol>` that nothing uses is
+  accepted.
 - References made through CSS selectors in `<style>` (`.a { fill: url(#p) }`) are not
   followed. This is the known gap in the rule.
+- `<marker>` is not in the elements allowlist, so it rejects with `element-not-allowed`
+  before any counting. Browsers draw a marker's content again at every point of a line, so
+  a short file with a long path can keep a browser busy for minutes. The `marker-*`
+  properties stay allowed and reference nothing.
 
 ## Allowlists
 
@@ -400,8 +404,8 @@ The lists as `rules()` returns them. Anything not here is rejected.
 <!-- rules:elements -->
 ```text
 svg g defs symbol use title desc metadata switch a view style path rect circle ellipse line polyline
-polygon text tspan textPath image linearGradient radialGradient stop pattern clipPath mask marker
-filter feBlend feColorMatrix feComponentTransfer feComposite feConvolveMatrix feDiffuseLighting
+polygon text tspan textPath image linearGradient radialGradient stop pattern clipPath mask filter
+feBlend feColorMatrix feComponentTransfer feComposite feConvolveMatrix feDiffuseLighting
 feDisplacementMap feDistantLight feDropShadow feFlood feFuncA feFuncB feFuncG feFuncR feGaussianBlur
 feImage feMerge feMergeNode feMorphology feOffset fePointLight feSpecularLighting feSpotLight feTile
 feTurbulence animate set animateTransform animateMotion mpath
@@ -417,23 +421,23 @@ externalResourcesRequired version baseProfile viewBox preserveAspectRatio zoomAn
 contentStyleType x y width height cx cy r rx ry x1 y1 x2 y2 fx fy fr d points pathLength href
 transform transform-origin transform-box dx dy rotate textLength lengthAdjust startOffset method
 spacing side gradientUnits gradientTransform spreadMethod offset patternUnits patternContentUnits
-patternTransform clipPathUnits maskUnits maskContentUnits markerUnits markerWidth markerHeight refX
-refY orient filterUnits primitiveUnits filterRes in in2 result mode type values tableValues slope
-intercept amplitude exponent k1 k2 k3 k4 operator radius stdDeviation edgeMode kernelMatrix order
-divisor bias targetX targetY kernelUnitLength preserveAlpha surfaceScale diffuseConstant
-specularConstant specularExponent z azimuth elevation pointsAtX pointsAtY pointsAtZ
-limitingConeAngle xChannelSelector yChannelSelector scale baseFrequency numOctaves seed stitchTiles
-attributeName attributeType begin dur end min max restart repeatCount repeatDur calcMode keyTimes
-keySplines from to by additive accumulate path keyPoints origin alignment-baseline baseline-shift
-clip clip-path clip-rule color color-interpolation color-interpolation-filters color-rendering
-direction display dominant-baseline enable-background fill fill-opacity fill-rule filter flood-color
-flood-opacity font font-family font-kerning font-size font-size-adjust font-stretch font-style
-font-variant font-weight glyph-orientation-horizontal glyph-orientation-vertical image-rendering
-isolation kerning letter-spacing lighting-color marker marker-end marker-mid marker-start mask
-mask-type mix-blend-mode opacity overflow paint-order pointer-events shape-rendering stop-color
-stop-opacity stroke stroke-dasharray stroke-dashoffset stroke-linecap stroke-linejoin
-stroke-miterlimit stroke-opacity stroke-width text-anchor text-decoration text-rendering
-unicode-bidi vector-effect visibility white-space word-spacing writing-mode
+patternTransform clipPathUnits maskUnits maskContentUnits refX refY filterUnits primitiveUnits
+filterRes in in2 result mode type values tableValues slope intercept amplitude exponent k1 k2 k3 k4
+operator radius stdDeviation edgeMode kernelMatrix order divisor bias targetX targetY
+kernelUnitLength preserveAlpha surfaceScale diffuseConstant specularConstant specularExponent z
+azimuth elevation pointsAtX pointsAtY pointsAtZ limitingConeAngle xChannelSelector yChannelSelector
+scale baseFrequency numOctaves seed stitchTiles attributeName attributeType begin dur end min max
+restart repeatCount repeatDur calcMode keyTimes keySplines from to by additive accumulate path
+keyPoints origin alignment-baseline baseline-shift clip clip-path clip-rule color
+color-interpolation color-interpolation-filters color-rendering direction display dominant-baseline
+enable-background fill fill-opacity fill-rule filter flood-color flood-opacity font font-family
+font-kerning font-size font-size-adjust font-stretch font-style font-variant font-weight
+glyph-orientation-horizontal glyph-orientation-vertical image-rendering isolation kerning
+letter-spacing lighting-color marker marker-end marker-mid marker-start mask mask-type
+mix-blend-mode opacity overflow paint-order pointer-events shape-rendering stop-color stop-opacity
+stroke stroke-dasharray stroke-dashoffset stroke-linecap stroke-linejoin stroke-miterlimit
+stroke-opacity stroke-width text-anchor text-decoration text-rendering unicode-bidi vector-effect
+visibility white-space word-spacing writing-mode
 ```
 <!-- /rules:attributes -->
 

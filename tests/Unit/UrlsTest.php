@@ -324,7 +324,6 @@ class UrlsTest extends SvgSecurityCheckTestCase
         return [
             'pattern filled a hundred times' => ['<pattern id="p" width="1" height="1"><rect width="1" height="1"/></pattern>' . str_repeat('<rect fill="url(#p)"/>', 100)],
             'gradient template chain'        => ['<linearGradient id="a"><stop/></linearGradient><linearGradient id="b" href="#a"/><rect fill="url(#b)"/>'],
-            'marker inside another marker'   => ['<marker id="m1"><path marker-start="url(#m2)"/></marker><marker id="m2"><circle r="1"/></marker><path marker-start="url(#m1)"/>'],
             'reference in a style attribute' => ['<pattern id="p"/><rect style="fill:url(#p)"/>'],
             'animation of an ancestor'       => ['<g id="g"><animate href="#g" attributeName="opacity" to="0"/></g>'],   // animating does not render the target
             'link to an ancestor'            => ['<g id="top"><a href="#top"><rect/></a></g>'],
@@ -501,7 +500,6 @@ class UrlsTest extends SvgSecurityCheckTestCase
     {
         return [
             'marker on itself'          => ['<path id="a" d="M0 0" marker-start="url(#a)"/>', '#a -> #a'],
-            'marker containing itself'  => ['<marker id="m"><path marker-start="url(#m)"/></marker><path marker-end="url(#m)"/>', '#m -> #m'],
             'mask on itself'            => ['<mask id="m" mask="url(#m)"/><rect mask="url(#m)"/>', '#m -> #m'],
             'two clip paths'            => ['<clipPath id="a"><rect clip-path="url(#b)"/></clipPath><clipPath id="b"><rect clip-path="url(#a)"/></clipPath><rect clip-path="url(#a)"/>', '#a -> #b -> #a'],
             'filter through feImage'    => ['<filter id="f"><feImage href="#r"/></filter><rect id="r" filter="url(#f)"/>', '#f -> #r -> #f'],

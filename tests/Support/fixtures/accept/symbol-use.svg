@@ -3,11 +3,7 @@
     <symbol id="dot" viewBox="0 0 10 10">
       <circle cx="5" cy="5" r="4" fill="currentColor"/>
     </symbol>
-    <marker id="arrow" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-      <path d="M0 0L6 3L0 6z"/>
-    </marker>
   </defs>
   <use href="#dot" x="2" y="2" width="10" height="10"/>
   <use xlink:href="#dot" x="14" y="2" width="10" height="10" color="#1D4ED8"/>
-  <line x1="30" y1="16" x2="60" y2="16" stroke="#111" marker-end="url(#arrow)"/>
 </svg>

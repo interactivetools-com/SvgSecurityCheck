@@ -42,7 +42,11 @@ final class SvgSecurityCheck
     private const XML_NS   = 'http://www.w3.org/XML/1998/namespace';
     private const XMLNS_NS = 'http://www.w3.org/2000/xmlns/';
 
-    /** Elements allowed in the SVG namespace. Not here on purpose: script, foreignObject, handler, listener, iframe, embed, font (and the other SVG font elements), tref, cursor, animateColor, discard. */
+    /**
+     * Elements allowed in the SVG namespace. Not here on purpose: script, foreignObject, handler, listener, iframe, embed,
+     * font (and the other SVG font elements), tref, cursor, animateColor, discard, and marker, whose content is drawn again
+     * at every point of a line, so a 70 KB file can keep Chrome busy for minutes.
+     */
     private const ELEMENTS = [
         // structure
         'svg', 'g', 'defs', 'symbol', 'use', 'title', 'desc', 'metadata', 'switch', 'a', 'view', 'style',
@@ -50,8 +54,8 @@ final class SvgSecurityCheck
         // shapes, text, images
         'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'text', 'tspan', 'textPath', 'image',
 
-        // paint servers, clipping, masking, markers
-        'linearGradient', 'radialGradient', 'stop', 'pattern', 'clipPath', 'mask', 'marker',
+        // paint servers, clipping, masking
+        'linearGradient', 'radialGradient', 'stop', 'pattern', 'clipPath', 'mask',
 
         // filters
         'filter', 'feBlend', 'feColorMatrix', 'feComponentTransfer', 'feComposite', 'feConvolveMatrix', 'feDiffuseLighting',
@@ -78,9 +82,9 @@ final class SvgSecurityCheck
         // text
         'dx', 'dy', 'rotate', 'textLength', 'lengthAdjust', 'startOffset', 'method', 'spacing', 'side',
 
-        // gradients, patterns, clipping, masking, markers
+        // gradients, patterns, clipping, masking, symbols
         'gradientUnits', 'gradientTransform', 'spreadMethod', 'offset', 'patternUnits', 'patternContentUnits', 'patternTransform',
-        'clipPathUnits', 'maskUnits', 'maskContentUnits', 'markerUnits', 'markerWidth', 'markerHeight', 'refX', 'refY', 'orient',
+        'clipPathUnits', 'maskUnits', 'maskContentUnits', 'refX', 'refY',
 
         // filters
         'filterUnits', 'primitiveUnits', 'filterRes', 'in', 'in2', 'result', 'mode', 'type', 'values', 'tableValues', 'slope',
@@ -655,7 +659,7 @@ final class SvgSecurityCheck
      * A <use> renders a copy of the element it references, and that copy can hold more <use>
      * elements. A few dozen elements arranged as a tree of references expand to billions of
      * rendered elements, which hangs a browser tab or a server-side rasterizer. Patterns,
-     * markers, masks, filters and gradients are references too: fill="url(#p)" renders the
+     * masks, filters and gradients are references too: fill="url(#p)" renders the
      * pattern's content, and that content can be filled with the next pattern. Loops are caught
      * the same way. The walk records, for every element with an id, how many elements it
      * contains and which ids the elements inside it reference; the count runs once the whole
@@ -666,7 +670,7 @@ final class SvgSecurityCheck
     private const HREF_RENDERS_TARGET = ['use', 'pattern', 'linearGradient', 'radialGradient', 'filter', 'feImage'];
 
     // elements whose content renders only when something references it
-    private const HIDDEN_ELEMENTS = ['defs', 'symbol', 'pattern', 'mask', 'marker', 'clipPath', 'filter'];
+    private const HIDDEN_ELEMENTS = ['defs', 'symbol', 'pattern', 'mask', 'clipPath', 'filter'];
 
     // url(#id) in an attribute value, quotes and whitespace allowed: url( "#id" ); captures the id. A quoted id runs to
     // its closing quote, since url('#p)q') references id="p)q"; (?| numbers each branch's capture as group 1
@@ -735,7 +739,7 @@ final class SvgSecurityCheck
                     if (preg_match_all(self::URL_FRAGMENT, $value, $matches) === false) {   // a PCRE limit was reached, so the references are unknown
                         $this->fail('reference-expansion-too-large', 'could not be counted');
                     } else {
-                        array_push($targets, ...$matches[1]);   // fill, stroke, marker-*, mask, clip-path, filter, and style=
+                        array_push($targets, ...$matches[1]);   // fill, stroke, mask, clip-path, filter, and style=
                     }
                 }
             } while ($reader->moveToNextAttribute());

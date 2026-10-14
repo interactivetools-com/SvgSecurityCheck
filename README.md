@@ -86,6 +86,8 @@ SvgSecurityCheck::$maxErrors = 100;    // the size limits are public static prop
   markup no other rule sees, or to gigabytes of text. So are reference loops, and chains of
   `<use>` (which draws a copy of another element) or `<pattern>` where a few dozen references
   render billions of elements, which browsers cap and server-side rasterizers do not.
+  `<marker>` is rejected too: a browser draws its content again at every point of a line,
+  so a short file can keep the tab busy for minutes.
 
 ## What It Does Not Check
 
