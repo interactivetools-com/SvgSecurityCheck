@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   Probe file for tools/img-vs-direct/index.html. It carries, on purpose, the things
-  SvgSecurityCheck rejects, so a browser can show what they do in <img> and what they do when
-  the same file is opened directly. Every effect is visible on the drawing itself; nothing
+  SvgSecurityCheck rejects, plus a :hover rule it allows, so a browser can show what they do
+  in <img> and what they do when the same file is opened directly. Every effect is visible on the drawing itself; nothing
   leaves the file. SvgSecurityCheck::checkFile() on this file reports element-not-allowed,
   event-handler and href-not-allowed.
 -->
