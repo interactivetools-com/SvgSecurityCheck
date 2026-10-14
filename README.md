@@ -114,6 +114,13 @@ If Apache or nginx serves the upload folder directly, set them there for `.svg` 
 - **You put SVG source inline in HTML pages.** Inline SVG runs with the page's origin and next
   to its scripts, so sanitize on output with DOMPurify.
 
+## Security
+
+Every rule is an allowlist, so an element, attribute or CSS function that browsers add later is
+rejected until it is added here. What the rules cannot anticipate is a browser changing how it
+handles something already allowed. Update when a new release comes out, and report a file that
+gets through as described in [SECURITY.md](SECURITY.md).
+
 ## Related Libraries
 
 - [HtmlSecurityCheck](https://github.com/interactivetools-com/HtmlSecurityCheck) - the same check for HTML from an editor, a form or an import: reject, never rewrite.

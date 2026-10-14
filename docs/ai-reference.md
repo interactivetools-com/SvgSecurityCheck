@@ -34,8 +34,9 @@ there is no cleaned output, and the caller stores the original bytes or refuses 
 
 Every rule is an allowlist. Elements, attributes, XML namespaces, URL forms, animation
 targets, CSS functions and CSS at-rules not on a list are rejected. Three CSS tokens the
-lists cannot catch are also banned by name: a backslash, `-moz-binding` and `behavior:`. The rules have no options: every install checks the same way. The size limits
-are public static properties, see [Limits](#limits).
+lists cannot catch are also banned by name: a backslash, `-moz-binding` and `behavior:`.
+The rules have no options: every install checks the same way. The size limits are public
+static properties, see [Limits](#limits).
 
 ```php
 use Itools\SvgSecurityCheck\SvgSecurityCheck;
@@ -64,8 +65,8 @@ throws. Neither method looks at the file name, extension, or MIME type.
 
 `rules()` returns an array with the keys `elements`, `attributes`, `namespacedAttributes`
 (keyed by namespace URI), `inertNamespaces`, `inertProcessingInstructions`, `imageElements`,
-`dataImageTypes`, `cssFunctions` and `cssAtRules`. See [Allowlists](#allowlists). The lists are constants; changing the
-returned array changes nothing.
+`dataImageTypes`, `cssFunctions` and `cssAtRules`. See [Allowlists](#allowlists). The lists
+are constants; changing the returned array changes nothing.
 
 ### Result
 
@@ -92,9 +93,8 @@ $violation->message;    // '<script> is not allowed in uploaded SVGs'
 Violation::TEMPLATES;   // every message template keyed by code, one %s each
 ```
 
-All four properties are readonly strings.
-
-`detail` and `message` contain text from the uploaded file. HTML-encode them before output.
+All four properties are readonly strings. `detail` and `message` hold raw text from the
+file; see [Constraints and Gotchas](#constraints-and-gotchas) for encoding them.
 
 For translation, `template` goes through the translation function and `detail` goes back in
 with `sprintf()`. The template holds literal `<` and `>`, so the whole result is encoded:
@@ -135,9 +135,6 @@ if (SvgSecurityCheck::checkString($svg)->ok) {
     file_put_contents($path, $svg);
 }
 ```
-
-Switch on `code`, not on `message`, when the application reacts to a specific rule. Codes
-never change once released; message wording can.
 
 ## Error Codes
 
@@ -541,9 +538,11 @@ unknown elements although Chrome would tolerate them.
   script runs and nothing loads from outside even if it is served as `text/html`: the
   element prefix, `xmlns:xlink`, comment, CDATA, processing-instruction and text-only
   `<title>`/`<desc>` rules close the places where an HTML parser reads the file differently
-  from XML. `X-Content-Type-Options: nosniff` and
-  `Content-Security-Policy: sandbox` add a second layer in case a rule is ever bypassed. Refuse `.svgz` and HTML uploads at the extension
-  check; this library does not look at either.
+  from XML. Refuse `.svgz` and HTML uploads at the extension check; this library does not
+  look at either.
+- **Extra headers are a second layer.** `X-Content-Type-Options: nosniff` and
+  `Content-Security-Policy: sandbox` block script in case a rule is ever bypassed. The rules
+  do not depend on them.
 - **Not for inline SVG.** An accepted file is safe to serve as its own document or through
   `<img>`. Pasting SVG source into an HTML page is a different threat model (the page's
   origin, the page's scripts) and is not what these rules were built for.
