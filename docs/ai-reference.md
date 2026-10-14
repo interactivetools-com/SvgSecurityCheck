@@ -577,8 +577,9 @@ although they carry no attack: `<animateColor>` and `<discard>`, which no design
   script runs and nothing loads from outside even if it is served as `text/html`, because the
   element prefix, `xmlns:xlink`, comment, CDATA, processing-instruction and text-only
   `<title>`/`<desc>` rules close the places where an HTML parser reads the file differently
-  from XML. Refuse `.svgz` and HTML uploads at the extension check; this library does not
-  look at either.
+  from XML. Save it under a `.svg` name the code picks, never the uploaded name, since a
+  server sets the content type from the extension. Refuse `.svgz` uploads; this library reads
+  only the bytes.
 - **Extra headers are a second layer.** `X-Content-Type-Options: nosniff` and
   `Content-Security-Policy: sandbox` block script in case a rule is ever bypassed. The rules
   do not depend on them.

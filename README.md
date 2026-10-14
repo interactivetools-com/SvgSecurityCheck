@@ -91,8 +91,10 @@ SvgSecurityCheck::$maxErrors = 100;    // the size limits are public static prop
 
 - **File size.** The file is streamed, so memory does not grow with its size, except for an
   embedded `data:` image, which is held whole while it is checked. Cap the size at upload time.
-- **Extension and MIME type.** Only the bytes are read. Refuse `.svgz`, `.html` and `.xml`
-  uploads yourself.
+- **File name and MIME type.** Only the bytes are read. Save an accepted file under a `.svg`
+  name your code picks, as the Quick Start does: a server sets the content type from the
+  extension, so a file kept under the visitor's name `logo.html` is served as a web page.
+  Refuse `.svgz` uploads, which browsers render only when the server sends them gzip-encoded.
 - **Renderer bugs.** An accepted file is still parsed by libxml2, a browser, or ImageMagick.
   Keep the rasterizer patched.
 - **References set in CSS.** A `<style>` rule such as `.a { fill: url(#p) }` is not counted,
