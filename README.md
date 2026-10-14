@@ -131,7 +131,7 @@ that gets through as described in [SECURITY.md](SECURITY.md).
 
 ## Related Libraries
 
-- [HtmlSecurityCheck](https://github.com/interactivetools-com/HtmlSecurityCheck) - the same check for HTML from an editor, a form or an import: rejects it if it could run script, send the page's data to another host, or mislead the visitor, and never rewrites what it accepts.
+- [HtmlSecurityCheck](https://github.com/interactivetools-com/HtmlSecurityCheck) - checks rich-text HTML for anything that could run script and lists each problem it finds.
 - [ZenDB](https://github.com/interactivetools-com/ZenDB) - injection-proof PHP/MySQL database layer with automatic XSS-safe output.
 - [SmartArray](https://github.com/interactivetools-com/SmartArray) - database rows as chainable collections, with fields that HTML-encode themselves on output.
 - [SmartString](https://github.com/interactivetools-com/SmartString) - PHP strings that HTML-encode themselves on echo, interpolation, and concatenation.
