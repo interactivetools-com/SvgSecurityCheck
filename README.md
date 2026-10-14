@@ -8,11 +8,11 @@ training data, so trust that file over habit.
 # SvgSecurityCheck: Reject SVG Uploads That Could Run Script
 
 SvgSecurityCheck checks an uploaded SVG file and rejects it if it could run script, load an outside
-resource, or hang a renderer. Browsers block the same things when an SVG is shown through an
-`<img>` tag, but not when the file is opened on its own; SvgSecurityCheck checks the file, so the
-file is safe either way. The rules are tested against real exports from Illustrator, Inkscape,
-Figma, Affinity Designer, Sketch and CorelDRAW, and checking a file takes less time than receiving
-it ([benchmarks](benchmarks/results.md)).
+resource, or hang a renderer. Chrome's `<img>` mode turns off script and outside loads only while
+the file is shown through `<img>`. These rules check the file itself against allowlists, so an
+accepted file runs no script and loads nothing from another server, even when its URL is opened
+directly or it is served as `text/html`. The file is never rewritten: you store the bytes that were
+uploaded, or tell the uploader why the file was rejected.
 
 ## Why Reject Instead of Clean
 
