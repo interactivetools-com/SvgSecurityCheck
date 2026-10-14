@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 /**
- * Times SvgSecurityCheck on generated files of known sizes and on the real files in corpus/,
- * and prints the markdown tables in docs/performance.md.
+ * Times SvgSecurityCheck on generated files of known sizes, on hostile files and on the real
+ * files in corpus/, and prints the markdown tables saved in benchmarks/results.md.
  *
  *     php -d opcache.enable_cli=1 -d xdebug.mode=off benchmarks/check-speed.php
- *     php ... benchmarks/check-speed.php --corpus=corpus                            # add the real-file table (run tools/fetch-corpus.php first)
- *     php ... benchmarks/check-speed.php --sanitizer=/path/to/vendor/autoload.php   # add enshrined/svg-sanitize columns for scale
+ *     php ... benchmarks/check-speed.php --corpus=corpus                            # add the real-file table (run tools/fetch-corpus.php and tools/fetch-commons.php first)
+ *     php ... benchmarks/check-speed.php --sanitizer=/path/to/vendor/autoload.php   # add enshrined/svg-sanitize columns for comparison
  *
  * Loads src/ directly, so no composer install is needed. Generated files are written to the
  * system temp dir and deleted at the end. Each time is the fastest of several runs of one
