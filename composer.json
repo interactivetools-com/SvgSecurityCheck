@@ -1,7 +1,7 @@
 {
     "name": "itools/svgsecuritycheck",
-    "description": "Rejects uploaded SVG files that could run script, load external resources, or hang a renderer: an allowlist validator matching what browsers permit for SVG in an <img> tag",
-    "keywords": ["php", "svg", "xml", "upload", "file-upload", "image-upload", "upload-validation", "validator", "validation", "svg-validator", "allowlist", "security", "xss", "svg-sanitizer", "sanitize", "xmlreader", "libxml"],
+    "description": "Allowlist check for uploaded SVG files: rejects any that could run script, load an outside resource, or hang a renderer, even when opened outside an <img> tag, and never rewrites a file it accepts",
+    "keywords": ["php", "svg", "svg-upload", "svg-security", "file-upload", "image-upload", "upload-validation", "svg-validator", "validator", "allowlist", "security", "xss", "svg-xss", "stored-xss", "xxe", "entity-expansion", "svg-sanitizer", "xmlreader", "libxml"],
     "type": "library",
     "homepage": "https://github.com/interactivetools-com/SvgSecurityCheck",
     "license": "MIT",
