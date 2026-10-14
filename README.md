@@ -52,15 +52,12 @@ if (!$result->ok) {
 }
 move_uploaded_file($_FILES['logo']['tmp_name'], 'uploads/logo.svg');
 
-// logo.php: serve it as an image; the last two headers are a second layer of protection
+// logo.php: serve it as an image
 header('Content-Type: image/svg+xml');
-header('X-Content-Type-Options: nosniff');    // never guess another type from the contents
-header('Content-Security-Policy: sandbox');   // no script and no cookies
 readfile('uploads/logo.svg');
 ```
 
-If Apache or nginx serves the upload folder directly, set the same two extra headers there for
-`.svg` files. The rest of the API:
+The rest of the API:
 
 ```php
 $result->ok;                           // true when nothing was found
@@ -96,6 +93,18 @@ SvgSecurityCheck::rules();             // the allowlists, for reading; the rules
   uploads yourself.
 - **Renderer bugs.** An accepted file is still parsed by libxml2, a browser, or ImageMagick.
   Keep the rasterizer patched.
+
+## Additional Protection
+
+A file that passes is safe to serve with only `Content-Type: image/svg+xml`. Two more headers
+add a second layer in case a rule is ever bypassed:
+
+```php
+header('X-Content-Type-Options: nosniff');    // never guess another type from the contents
+header('Content-Security-Policy: sandbox');   // no script and no cookies
+```
+
+If Apache or nginx serves the upload folder directly, set them there for `.svg` files.
 
 ## When You Might Not Want SvgSecurityCheck
 
