@@ -745,6 +745,8 @@ final class SvgSecurityCheck
             } while ($reader->moveToNextAttribute());
             $reader->moveToElement();
         }
+        // an animation inside <defs> still changes the visible element it targets, so <set to="url(#p)"> counts as rendered anywhere
+        $rendered = $this->hiddenDepth === null || in_array($element, self::ANIMATION_ELEMENTS, true);
         foreach ($targets as $target) {
             if ($this->tooManyReferences()) {   // checked per target: one element can carry thousands of url() attributes
                 return;
@@ -753,7 +755,7 @@ final class SvgSecurityCheck
             if (str_contains($target, '%')) {
                 $target = rawurldecode($target);   // browsers decode the fragment before looking up the id, so #%61 renders id="a"
             }
-            if ($this->hiddenDepth === null) {
+            if ($rendered) {
                 if (isset($this->renderedReferences[$target])) {
                     $this->renderedReferences[$target]++;
                 } else {

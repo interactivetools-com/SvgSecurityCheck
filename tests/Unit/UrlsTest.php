@@ -430,6 +430,17 @@ class UrlsTest extends SvgSecurityCheckTestCase
         $this->assertRejects($this->patternChain(10, 5), 'reference-expansion-too-large', 'expand to more than 100,000 elements');
     }
 
+    /** Chrome applies a <set> inside <defs> to the visible element it targets, so its url() counts as rendered. */
+    public function testAnimationInsideDefsCannotHideABomb(): void
+    {
+        $bomb = str_replace(
+            '</defs><rect width="1" height="1" fill="url(#p5)"/>',
+            '<set href="#r" attributeName="fill" to="url(#p5)"/></defs><rect id="r" width="1" height="1"/>',
+            $this->patternChain(10, 5),
+        );
+        $this->assertRejects($bomb, 'reference-expansion-too-large', 'expand to more than 100,000 elements');
+    }
+
     /** $references <use> elements, each to its own missing id, inside $nestedIds groups that all have an id. */
     private function nestedReferences(int $nestedIds, int $references, string $target = 'missing'): string
     {

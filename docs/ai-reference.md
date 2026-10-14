@@ -387,7 +387,8 @@ tabs, newlines and trailing spaces are dropped, and a percent-encoded `#id` is d
   MB whatever the file does.
 - Content inside `<defs>`, `<symbol>`, `<pattern>`, `<mask>`, `<clipPath>` and `<filter>`
   counts only when something references it. A loop inside a `<symbol>` that nothing uses is
-  accepted.
+  accepted. The exception is an animation: `<set to="url(#p)">` inside `<defs>` still
+  changes the visible element it targets, so its `url()` counts wherever it is.
 - References made through CSS selectors in `<style>` (`.a { fill: url(#p) }`) are not
   followed. This is the known gap in the rule.
 - `<marker>` is not in the elements allowlist, so it rejects with `element-not-allowed`
