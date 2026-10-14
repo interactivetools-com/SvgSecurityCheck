@@ -118,8 +118,10 @@ final class SvgSecurityCheck
     /**
      * Namespaces browsers ignore: design-tool and metadata vocabularies. Element and attribute
      * names in them pass without a name check, but on* attributes and script still reject, the
-     * element must be written with a prefix, and attribute values get the href, CSS and url()
-     * checks. Matched by prefix, since Adobe alone uses dozens of namespaces under one host.
+     * element must be written with a prefix, and the unprefixed attributes of an inert element
+     * get the href, CSS and url() checks. Attributes in these namespaces skip the value checks:
+     * they always have a prefix, and it is never xlink, so no parser reads them. Matched by
+     * prefix, since Adobe alone uses dozens of namespaces under one host.
      * @noinspection HttpUrlsUsage
      */
     private const INERT_NAMESPACES = [

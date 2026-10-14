@@ -14,7 +14,7 @@ namespace Itools\SvgSecurityCheck;
  *         echo htmlspecialchars($violation->message), "<br>";
  *     }
  *
- * errors holds one Violation per distinct problem, in file order, at most 50. The list
+ * errors holds one Violation per distinct problem, in the order found, at most 50. The list
  * ends early when the XML is malformed, since parsing cannot continue past that point.
  * Every value in a Violation is plain text taken from the uploaded file, so HTML-encode
  * it before output.
