@@ -53,9 +53,12 @@ An accepted file, shown through an <img> tag or opened as its own document,
 stays inside what current Chrome, Firefox and Safari allow an SVG image to
 do: it cannot run script, cannot load anything outside itself, and cannot
 interact with the page or navigate. The same file is safe in a server-side
-rasterizer such as librsvg or resvg. docs/internal/browser-research.md is the
-reference for what the browsers allow; docs/ai-reference.md lists every rule
-and allowlist and is the specification.
+rasterizer such as librsvg or resvg. It also runs no script and loads nothing
+from outside when the file is served as text/html: an HTML parser reading the
+same bytes must not build anything the XML-side rules did not check.
+docs/internal/browser-research.md is the reference for what the browsers allow;
+docs/ai-reference.md lists every rule and allowlist and is the specification;
+docs/internal/design-decisions.md says why the rules are shaped as they are.
 
 What to look for
 
@@ -69,7 +72,15 @@ from what the rules assume. The likely places:
   order mark and encoding declaration, control bytes, invalid UTF-8, nested
   data: SVG, and anything that lets the prolog or root checks see a
   different document than the browser does.
+- Something an HTML parser builds from an accepted file that the XML parse
+  did not: foreign-content breakout, integration points such as <title> and
+  <desc>, prefixes, comments, CDATA and processing instructions. Name the
+  tree-construction step in the HTML spec.
+- A CSS function, at-rule or property on the allowlists that can fetch or
+  run something, or a way to spell one that the name scan does not see.
 - Animation reaching an attribute the rules deny on the element itself.
+- A preg_* call over file content whose false or null return (a PCRE limit)
+  lets the file pass instead of rejecting it.
 - A reference chain or nesting that the expansion counter or the depth
   limits do not follow, so a browser tab or rasterizer hangs on an accepted
   file.
@@ -97,6 +108,11 @@ wasted:
   foreignObject, unknown elements) is by design.
 - The library's own time and memory: reading is linear in file size, and
   what it keeps is capped by documented limits.
+- Inherited paint on a group or through <use> counts once in the expansion
+  counter, not once per painted element. Reviewed and accepted.
+- Serving headers (X-Content-Type-Options, Content-Security-Policy sandbox)
+  are an optional second layer. The rules do not depend on them; do not
+  suggest making them required.
 
 Use prior findings as leads, not proof. Verify the current implementation,
 consolidate one root cause reported several ways, and calibrate severity to
@@ -107,5 +123,6 @@ codex-security scan . "${paths[@]}" \
     --knowledge-base docs/ai-reference.md \
     --knowledge-base docs/errors.md \
     --knowledge-base docs/internal/browser-research.md \
+    --knowledge-base docs/internal/design-decisions.md \
     --scan-prompt-file "$prompt_file" \
     "$@"
