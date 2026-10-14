@@ -7,13 +7,13 @@ rejection rule in one file, covering SvgSecurityCheck 1.0. For human-friendly do
 Contents:
 
 - [What SvgSecurityCheck Is](#what-svgsecuritycheck-is)
-- [API](#api) - checkFile(), checkString(), rules(), Result, Violation
+- [API](#api) - `checkFile()`, `checkString()`, `rules()`, `Result`, `Violation`
 - [Usage Pattern](#usage-pattern)
 - [Error Codes](#error-codes)
 - [Rules: Structure](#rules-structure)
 - [Rules: Elements and Namespaces](#rules-elements-and-namespaces)
 - [Rules: Attributes](#rules-attributes)
-- [Rules: URLs](#rules-urls) - href, url(), embedded images
+- [Rules: URLs](#rules-urls) - `href`, `url()`, embedded images
 - [Rules: CSS](#rules-css)
 - [Rules: Animation](#rules-animation)
 - [Rules: Reference Loops and Expansion](#rules-reference-loops-and-expansion)
@@ -27,14 +27,15 @@ Contents:
 ## What SvgSecurityCheck Is
 
 SvgSecurityCheck checks an uploaded SVG file and rejects it if it could run script, load anything
-from outside itself, or hang a renderer, **with a list of reasons**. Chrome blocks the same
-things when an SVG is shown through an `<img>` tag, but not when the file is opened on its
-own; SvgSecurityCheck checks the file, so it is safe either way. The file is **never modified**:
+from outside itself, or hang a renderer, with a list of reasons. Chrome's `<img>` mode blocks
+script and outside loads, but Chrome does not block them when the file is opened on its own;
+SvgSecurityCheck checks the file, so it is safe either way. The file is **never modified**:
 there is no cleaned output, and the caller stores the original bytes or refuses the upload.
 
 Every rule is an allowlist. Elements, attributes, XML namespaces, URL forms, animation
-targets, CSS functions and CSS at-rules not on a list are rejected. Three CSS tokens the
-lists cannot catch are also banned by name: a backslash, `-moz-binding` and `behavior:`.
+targets, CSS functions and CSS at-rules not on a list are rejected. On top of the lists,
+`on*` attributes, a `<script>` element in any namespace, and three CSS tokens the lists cannot
+catch (a backslash, `-moz-binding` and `behavior:`) are rejected by name.
 The rules have no options: every install checks the same way. The size limits are public
 static properties, see [Limits](#limits).
 
@@ -54,14 +55,14 @@ Three final classes in the `Itools\SvgSecurityCheck` namespace. Nothing throws f
 a hostile or broken upload is expected input and comes back as a rejected `Result`.
 
 ```php
-SvgSecurityCheck::checkFile(string $path): Result     // streams the file; memory does not grow with file size
+SvgSecurityCheck::checkFile(string $path): Result     // streams the file; memory grows only with embedded data: images
 SvgSecurityCheck::checkString(string $svg): Result    // same check on SVG source in a string
 SvgSecurityCheck::rules(): array                      // the allowlists, for documentation and debugging
 ```
 
-`checkFile()` and `checkString()` give the same result for the same bytes. `checkFile()` on
-a path that is not a readable file returns a result with one `file-unreadable` error; it never
-throws. Neither method looks at the file name, extension, or MIME type.
+`checkFile()` and `checkString()` give the same result for the same bytes. Given a path that
+is not a readable file, `checkFile()` returns a result with one `file-unreadable` error; it
+never throws. Neither method looks at the file name, extension, or MIME type.
 
 `rules()` returns an array with the keys `elements`, `attributes`, `namespacedAttributes`
 (keyed by namespace URI), `inertNamespaces`, `inertProcessingInstructions`, `imageElements`,
@@ -74,14 +75,14 @@ are constants; changing the returned array changes nothing.
 final class Result
 {
     public readonly bool  $ok;       // true when $errors is empty
-    public readonly array $errors;   // Violation[], in file order, at most 50
+    public readonly array $errors;   // Violation[], in the order found, at most 50
 }
 ```
 
 `errors` holds one `Violation` per distinct problem (deduplicated by code and detail), in the
 order found, capped at 50. Prolog problems (`not-svg`, `not-utf8`, `doctype-not-allowed`,
 `file-unreadable`, and `malformed-xml` when no root tag starts within the first 64 KB) stop
-the check, so they arrive alone. `malformed-xml`, when present, is always the last entry:
+the check, so they arrive alone. When `malformed-xml` is present, it is always the last entry:
 nothing after a parse error is checked.
 
 ### Violation
@@ -94,8 +95,11 @@ $violation->message;    // '<script> is not allowed in uploaded SVGs'
 Violation::TEMPLATES;   // every message template keyed by code, one %s each
 ```
 
-All four properties are readonly strings. `detail` and `message` hold raw text from the
-file; see [Constraints and Gotchas](#constraints-and-gotchas) for encoding them.
+All four properties are readonly strings, and `detail` and `message` hold raw text from the
+file; see [Constraints and Gotchas](#constraints-and-gotchas) for encoding them. The
+constructors are public, so a test can build a result:
+`new Result([new Violation('element-not-allowed', 'script')])`. The code must be a key of
+`Violation::TEMPLATES`.
 
 For translation, `template` goes through the translation function and `detail` goes back in
 with `sprintf()`. The template holds literal `<` and `>`, so the whole result is encoded:
@@ -105,7 +109,14 @@ echo htmlspecialchars(sprintf(t($violation->template), $violation->detail));
 ```
 
 `Violation::TEMPLATES` lists every template by code so a translation system can register
-them all up front.
+them all up front. Codes never change once released; template wording can, so a translation
+table keyed by `code` keeps working when a template is reworded.
+
+Some details are English text written by the library, not text from the file: the phrases
+listed for `not-svg`, `not-utf8`, `doctype-not-allowed`, `reference-expansion-too-large`,
+`css-not-allowed` and `embedded-svg-not-allowed` in [Error Codes](#error-codes), plus the
+PCRE-limit phrases below. A translation system can map those by exact value. libxml2's message
+in `malformed-xml` and an embedded SVG's inner message stay English.
 
 ## Usage Pattern
 
@@ -113,6 +124,9 @@ them all up front.
 use Itools\SvgSecurityCheck\SvgSecurityCheck;
 
 $upload = $_FILES['logo'];
+if ($upload['error'] !== UPLOAD_ERR_OK) {
+    exit('The upload failed, please try again');
+}
 $result = SvgSecurityCheck::checkFile($upload['tmp_name']);
 
 if (!$result->ok) {
@@ -127,7 +141,7 @@ move_uploaded_file($upload['tmp_name'], "/var/www/uploads/logo.svg");   // the o
 SVG sanitizers return a cleaned string to store. SvgSecurityCheck does not; store the original.
 
 ```php
-// WRONG - checkString() returns a Result, not a cleaned SVG
+// WRONG - checkString() returns a Result, not a cleaned SVG; this writes an empty file, with no warning
 $clean = SvgSecurityCheck::checkString($svg);
 file_put_contents($path, $clean);
 
@@ -139,44 +153,46 @@ if (SvgSecurityCheck::checkString($svg)->ok) {
 
 ## Error Codes
 
-Every code, its template, and what `detail` holds. Templates are `Violation::TEMPLATES`.
+Every code, its template, and what `detail` holds. Templates are `Violation::TEMPLATES`. The
+fix to show the uploader for each code is in [errors.md](errors.md).
 
-| Code                            | Template                                                                                | `detail`                                                                                                                                                        |
-|---------------------------------|-----------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `file-unreadable`               | `Cannot read file %s`                                                                   | the file's basename                                                                                                                                             |
-| `not-svg`                       | `This is not an SVG file: it starts with %s`                                            | the first 20 bytes, control and non-ASCII bytes escaped, or `nothing (the file is empty)`                                                                       |
-| `not-utf8`                      | `SVG files must be UTF-8, this one is %s`                                               | `UTF-16 or UTF-32` or `declared as ISO-8859-1` (the declared encoding)                                                                                          |
-| `malformed-xml`                 | `The SVG is not well-formed XML: %s`                                                    | libxml2's message plus ` (line N)`, or `no root element within the first 64 KB`                                                                                 |
-| `doctype-not-allowed`           | `The DOCTYPE declaration is not allowed because %s`                                     | `it contains an internal DTD subset (entity declarations)`                                                                                                      |
-| `processing-instruction`        | `Processing instructions like <?%s?> are not allowed`                                   | the instruction's target, such as `xml-stylesheet`; for an `xpacket` marker holding `>`, the target and its text                                                |
-| `comment-not-allowed`           | `A comment starting with <!--%s is not allowed, HTML parsers close it there`            | `>` or `->`                                                                                                                                                     |
-| `cdata-not-allowed`             | `A CDATA section containing > is not allowed inside <%s>, HTML parsers end it there`    | `title` or `desc`                                                                                                                                               |
-| `element-in-title-or-desc`      | `<title> and <desc> may hold only text, not <%s>`                                       | the element name as written, such as `style` or `a`                                                                                                             |
-| `root-not-svg`                  | `The root element must be <svg>, not <%s>`                                              | the root element's name as written                                                                                                                              |
-| `root-namespace-wrong`          | `The root <svg> element must declare xmlns="http://www.w3.org/2000/svg", but it has %s` | `none` or `xmlns="..."` with the namespace found                                                                                                                |
-| `element-not-allowed`           | `<%s> is not allowed in uploaded SVGs`                                                  | the element's local name, or its name as written when it has no namespace or is a `script`                                                                      |
-| `namespace-not-allowed`         | `Elements from the XML namespace %s are not allowed`                                    | the namespace URI                                                                                                                                               |
-| `element-prefix-wrong`          | `<%s> has the wrong prefix: SVG elements take none, metadata elements need one`         | the element name as written, such as `svg:rect` or `p`                                                                                                          |
-| `event-handler`                 | `%s= event handler attributes are not allowed`                                          | the attribute name as written, such as `onload` or `xlink:onload`                                                                                               |
-| `attribute-not-allowed`         | `The %s attribute is not allowed`                                                       | the attribute name as written, such as `tabindex` or `xml:base`                                                                                                 |
-| `xlink-prefix-wrong`            | `The xlink: prefix must be bound to http://www.w3.org/1999/xlink, not %s`               | the namespace the prefix is bound to                                                                                                                            |
-| `href-not-allowed`              | `href must reference an element in the same file (#id), not %s`                         | the value, or `(empty)`                                                                                                                                         |
-| `image-href-not-allowed`        | `Image href must be #id or an embedded PNG, JPEG, GIF, WebP or SVG data: URL, not %s`   | the value, or `(empty)`                                                                                                                                         |
-| `embedded-svg-not-allowed`      | `An embedded SVG image was rejected: %s`                                                | the inner file's message, `the data: URL is not valid base64`, or `SVG images nested more than 3 levels deep`                                                   |
-| `url-not-fragment`              | `url() in the %s attribute must reference an element in the same file (#id)`            | the attribute name                                                                                                                                              |
-| `reference-expansion-too-large` | `The references in this file %s`                                                        | `form a loop (#a -> #b -> #a)`, `expand to more than 100,000 elements`, or `need more than 100,000 records to track (ids and references)`                       |
-| `css-not-allowed`               | `CSS containing %s is not allowed`                                                      | the token, function or at-rule as matched (`\`, `image-set(`, `@import`, `url(https://example.com/a.css`) or `more than 1,000,000 bytes`                        |
-| `animation-target-not-allowed`  | `Animating the %s attribute is not allowed`                                             | the `attributeName` value                                                                                                                                       |
+| Code                            | Template                                                                                | `detail`                                                                                                                                  |
+|---------------------------------|-----------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| `file-unreadable`               | `Cannot read file %s`                                                                   | the file's basename                                                                                                                       |
+| `not-svg`                       | `This is not an SVG file: it starts with %s`                                            | the first 20 bytes, control and non-ASCII bytes escaped, or `nothing (the file is empty)`                                                 |
+| `not-utf8`                      | `SVG files must be UTF-8, this one is %s`                                               | `UTF-16 or UTF-32` or `declared as ISO-8859-1` (the declared encoding)                                                                    |
+| `malformed-xml`                 | `The SVG is not well-formed XML: %s`                                                    | libxml2's message plus ` (line N)`, or `no root element within the first 64 KB`                                                           |
+| `doctype-not-allowed`           | `The DOCTYPE declaration is not allowed because %s`                                     | `it contains an internal DTD subset (entity declarations)`                                                                                |
+| `processing-instruction`        | `Processing instructions like <?%s?> are not allowed`                                   | the instruction's target, such as `xml-stylesheet`; for an `xpacket` marker holding `>`, the target and its text                          |
+| `comment-not-allowed`           | `A comment starting with <!--%s is not allowed, HTML parsers close it there`            | `>` or `->`                                                                                                                               |
+| `cdata-not-allowed`             | `A CDATA section containing > is not allowed inside <%s>, HTML parsers end it there`    | `title` or `desc`                                                                                                                         |
+| `element-in-title-or-desc`      | `<title> and <desc> may hold only text, not <%s>`                                       | the element name as written, such as `style` or `a`                                                                                       |
+| `root-not-svg`                  | `The root element must be <svg>, not <%s>`                                              | the root element's name as written                                                                                                        |
+| `root-namespace-wrong`          | `The root <svg> element must declare xmlns="http://www.w3.org/2000/svg", but it has %s` | `none` or `xmlns="..."` with the namespace found                                                                                          |
+| `element-not-allowed`           | `<%s> is not allowed in uploaded SVGs`                                                  | the element's local name, or its name as written when it has no namespace or is a `<script>`                                              |
+| `namespace-not-allowed`         | `Elements from the XML namespace %s are not allowed`                                    | the namespace URI                                                                                                                         |
+| `element-prefix-wrong`          | `<%s> has the wrong prefix: SVG elements take none, metadata elements need one`         | the element name as written, such as `svg:rect` or `p`                                                                                    |
+| `event-handler`                 | `%s= event handler attributes are not allowed`                                          | the attribute name as written, such as `onload` or `xlink:onload`                                                                         |
+| `attribute-not-allowed`         | `The %s attribute is not allowed`                                                       | the attribute name as written, such as `tabindex` or `xml:base`                                                                           |
+| `xlink-prefix-wrong`            | `The xlink: prefix must be bound to http://www.w3.org/1999/xlink, not %s`               | the namespace the prefix is bound to                                                                                                      |
+| `href-not-allowed`              | `href must reference an element in the same file (#id), not %s`                         | the value, or `(empty)`                                                                                                                   |
+| `image-href-not-allowed`        | `Image href must be #id or an embedded PNG, JPEG, GIF, WebP or SVG data: URL, not %s`   | the value, or `(empty)`                                                                                                                   |
+| `embedded-svg-not-allowed`      | `An embedded SVG image was rejected: %s`                                                | the inner file's message, `the data: URL is not valid base64`, or `SVG images nested more than 3 levels deep`                             |
+| `url-not-fragment`              | `url() in the %s attribute must reference an element in the same file (#id)`            | the attribute name                                                                                                                        |
+| `reference-expansion-too-large` | `The references in this file %s`                                                        | `form a loop (#a -> #b -> #a)`, `expand to more than 100,000 elements`, or `need more than 100,000 records to track (ids and references)` |
+| `css-not-allowed`               | `CSS containing %s is not allowed`                                                      | the token, function or at-rule as matched (`\`, `image-set(`, `@import`, `url(https://example.com/a.css`) or `more than 1,000,000 bytes`  |
+| `animation-target-not-allowed`  | `Animating the %s attribute is not allowed`                                             | the `attributeName` value                                                                                                                 |
 
 Values taken from the file are cut at 60 characters and end with `...`. Control characters
-and invalid bytes are escaped after the cut, so they add length, and three details are not
-cut: the `file-unreadable` basename, an embedded SVG's inner message, and the ` (line N)`
-after a `malformed-xml` message.
+and invalid bytes are escaped after the cut, so they add length, and four details are not
+cut: the `file-unreadable` basename, an embedded SVG's inner message, the ` (line N)` after a
+`malformed-xml` message, and a banned CSS token (`behavior` keeps all the whitespace before
+its colon).
 
 A regex that reaches PHP's PCRE limits on hostile input rejects instead of passing. The
 detail is then `declared in a form that could not be read` (`not-utf8`),
 `could not be counted` (`reference-expansion-too-large`) or `text that could not be scanned`
-(`css-not-allowed`).
+(`css-not-allowed`); `url-not-fragment` keeps the attribute name as its detail.
 
 ## Rules: Structure
 
@@ -184,28 +200,29 @@ Checked on the first 64 KB before parsing, then by the parser. Each of the first
 the check. The first three arrive as the only error; `malformed-xml` ends the list after
 anything found earlier in the file.
 
-- **`not-utf8`**: a UTF-16 or UTF-32 byte order mark or null byte at the start, or an XML
-  declaration whose `encoding` is anything but `utf-8` (case-insensitive). A UTF-8 byte order
-  mark is fine and is skipped.
+- **`not-utf8`**: a UTF-16 or UTF-32 byte order mark, a null byte just before or after the
+  first `<`, two null bytes at the start, or an XML declaration whose `encoding` is anything
+  but `utf-8` (case-insensitive). A UTF-8 byte order mark is accepted and skipped.
 - **`not-svg`**: after the byte order mark and leading whitespace, the first byte is not `<`.
   An empty or whitespace-only file reports `nothing (the file is empty)`.
 - **`doctype-not-allowed`**: a `<!DOCTYPE` with an internal subset (`[`). A DOCTYPE with only
   a public or system id is accepted; nothing is fetched (`LIBXML_NONET`, `LOADDTD` off,
   `SUBST_ENTITIES` off), so an entity that such a DTD would define reports `malformed-xml`
   (`Entity 'foo' not defined`). The five built-in entities and numeric character references
-  are fine.
+  are accepted.
 - **`malformed-xml`**: the root tag does not start within 64 KB, or libxml2 reports any
   error or warning. Includes an undefined namespace prefix and invalid UTF-8 bytes. libxml2's
   own limits apply: element depth 256, a single text node 10 MB.
 - **`processing-instruction`**: any `<?target ...?>` anywhere, including `<?xml-stylesheet?>`,
   except the targets in `inertProcessingInstructions` (Adobe's `xpacket` XMP markers). An
   `xpacket` marker whose text holds `>` rejects too: HTML parsers end the instruction at the
-  first `>`. The `<?xml ...?>` declaration itself is not a processing instruction and is fine.
+  first `>`. The `<?xml ...?>` declaration itself is not a processing instruction and is
+  accepted.
 - **`comment-not-allowed`**: a comment whose content starts with `>` or `->` (written
-  `<!-->` or `<!--->`). All other comments are fine.
+  `<!-->` or `<!--->`). All other comments are accepted.
 - **`cdata-not-allowed`**: a `<![CDATA[` section inside `<title>` or `<desc>` whose text
   contains `>`. HTML parsers use HTML rules inside those two elements and end the CDATA at
-  the first `>`. CDATA anywhere else is fine, and so is `&gt;`. The detail is the element name.
+  the first `>`. CDATA anywhere else is accepted, and so is `&gt;`. The detail is the element name.
 - **`element-in-title-or-desc`**: any element inside `<title>` or `<desc>`, at any depth.
   HTML parsers read elements there as HTML, where `<style/>` is not empty and the text after
   it becomes CSS this check never saw. The detail is the element name as written.
@@ -238,9 +255,9 @@ written. HTML parsers ignore `xmlns` and read an element by the name as written,
 `<svg:svg>` is not SVG to them and `<p xmlns="http://ns.adobe.com/x">` is an HTML `<p>`.
 Design tools always write it this way.
 
-Not allowed on purpose, so never add them to a file to "fix" a rejection: `script`,
-`foreignObject`, `handler`, `listener`, `iframe`, `embed`, `font` (and the other SVG font
-elements), `tref`, `cursor`, `animateColor`, `discard`. A nested `<svg>` is fine.
+Not allowed on purpose: `<script>`, `<foreignObject>`, `<handler>`, `<listener>`, `<iframe>`,
+`<embed>`, `<font>` (and the other SVG font elements), `<tref>`, `<cursor>`, `<animateColor>`,
+`<discard>`. A nested `<svg>` is accepted.
 
 ## Rules: Attributes
 
@@ -258,13 +275,15 @@ For every attribute on an element in the SVG namespace or an inert namespace, in
    or start with `data-` or `aria-`. A prefixed name must be `lang` or `space` in the XML
    namespace or `href` or `title` in the XLink namespace, matched by namespace, not by the
    prefix as written (`xml:lang`, `xlink:href`). Anything else rejects with
-   `attribute-not-allowed`. Names are case-sensitive. On an inert element this step is skipped; step 5 still runs.
+   `attribute-not-allowed`. Names are case-sensitive. On an inert element this step is
+   skipped; step 5 still runs.
 5. The value is then checked: `href` and `xlink:href` per [URLs](#rules-urls), `style` per
    [CSS](#rules-css), every other value for `url(` per [URLs](#rules-urls), and on animation
    elements per [Animation](#rules-animation).
 
-Not allowed on purpose: `tabindex`, `target`, `crossorigin`, `cursor`, `xml:base`,
-`xlink:show`, `xlink:actuate`, every `on*`.
+Not allowed on purpose: `tabindex`, `target`, `crossorigin`, `cursor`, `xml:base`, `xml:id`
+(Batik reads it as an id, which the expansion check would not count), `xlink:show`,
+`xlink:actuate`, every `on*`.
 
 ## Rules: URLs
 
@@ -272,9 +291,9 @@ Not allowed on purpose: `tabindex`, `target`, `crossorigin`, `cursor`, `xml:base
 reference). On `<image>` and `<feImage>` only, it may instead be an embedded image:
 `data:image/png;base64,`, `data:image/jpeg;base64,`, `data:image/jpg;base64,`,
 `data:image/gif;base64,`, `data:image/webp;base64,` or `data:image/svg+xml;base64,` followed
-by the data (type matched case-insensitively; `;base64,` is required). Anything else rejects:
-`image-href-not-allowed` on those two elements, `href-not-allowed` everywhere else, including
-`<a href="https://...">` and `href=""`. Nothing checks that the `#id` exists.
+by the data (the whole prefix matched case-insensitively; `;base64,` is required). Anything
+else rejects: `image-href-not-allowed` on those two elements, `href-not-allowed` everywhere
+else, including `<a href="https://...">` and `href=""`. Nothing checks that the `#id` exists.
 
 **Embedded SVG.** A `data:image/svg+xml;base64,` value is decoded (strict base64) and checked
 as its own file with every rule here. Each problem found inside reports as
@@ -283,13 +302,14 @@ three levels deep; a fourth level rejects.
 
 **`url()` in attribute values.** Every allowed attribute except `href` and `style` is scanned
 for `url(` followed by optional whitespace and an optional quote and then anything but `#`
-(case-insensitive). A match rejects with `url-not-fragment` and the attribute name.
-`fill="url(#gradient)"` and `fill="url( '#gradient' )"` pass; `fill="url(image.png)"` and
-`fill="url(https://...)"` reject. CSS rules 1 and 2 (banned tokens and the function
-allowlist, under Rules: CSS below) apply to these values too, with `css-not-allowed`:
-presentation attributes are CSS values, so `fill="u\72l(...)"` is `url(...)` to a browser
-and `mask="image-set('https://...' 1x)"` loads that image. `data-*` and `aria-*` values
-are not CSS and are exempt.
+(case-insensitive). A match rejects with `url-not-fragment` and the attribute name, so
+`fill="url(#gradient)"` and `fill="url( '#gradient' )"` are accepted and
+`fill="url(image.png)"` and `fill="url(https://...)"` are rejected. CSS rules 1 and 2 (banned
+tokens and the function allowlist, under Rules: CSS below) apply to these values too and
+reject with `css-not-allowed`, because presentation attributes are CSS values:
+`fill="u\72l(...)"` is `url(...)` to a browser and `mask="image-set('https://...' 1x)"` loads
+that image. Values of `data-*` and `aria-*` attributes are not CSS and skip those two rules;
+the `url(` scan above still runs on them.
 
 ## Rules: CSS
 
@@ -300,7 +320,7 @@ attribute value except `href`, `data-*` and `aria-*`. All matching is case-insen
 1. **Banned tokens**, which the allowlists cannot catch: a backslash `\` (an escape could
    spell any name), and `-moz-binding` and `behavior:` (whitespace before the colon allowed),
    the properties old Firefox and IE used to attach code, whose `url(#id)` value would
-   otherwise pass. `behavior` counts only as a whole property name, with or without `-ms-`,
+   otherwise pass; `behavior` counts only as a whole property name, with or without `-ms-`,
    so `scroll-behavior:` passes and `_behavior:` rejects. Each rejects with
    `css-not-allowed` and the token as the detail.
 2. **Function names.** Every name directly followed by `(` must be in
@@ -315,7 +335,7 @@ attribute value except `href`, `data-*` and `aria-*`. All matching is case-insen
    as the detail.
 5. More than 1,000,000 bytes of text in one `<style>` element rejects with
    `more than 1,000,000 bytes` as the detail. The text is held whole until the closing tag,
-   so the limit keeps memory at 1 MB; the largest `<style>` in the corpus is 64 KB.
+   so the limit keeps memory at 1 MB.
 
 So `fill: url(#p)` passes, `@font-face { src: url(data:font/woff2;base64,...) }` passes
 anywhere in the CSS, and `background: url(https://...)`, `@import`, `image-set(...)` and any
@@ -331,7 +351,7 @@ On `<animate>`, `<set>`, `<animateTransform>` and `<animateMotion>`:
 - **`attributeName`** (trimmed, and with any `prefix:` removed, so `xlink:href` and
   `q:href` are both `href`) must be in the [attributes allowlist](#allowlists) and not
   `href`, `style`, `class` or `id`, else `animation-target-not-allowed`. Those four change
-  URLs, CSS and references after the check. `data-*`, `aria-*` and `on*` are not in the
+  URLs, CSS and references after the check; `data-*`, `aria-*` and `on*` are not in the
   allowlist, so they cannot be animated either. Names are case-sensitive. The detail is the
   name as written.
 - **`from`, `to`, `by`, `values`** get the same checks as any attribute value: `url()`
@@ -346,13 +366,14 @@ On `<animate>`, `<set>`, `<animateTransform>` and `<animateMotion>`:
 After the whole file is read (and only when it parsed cleanly), every same-file reference
 that renders its target is followed: `url(#id)` in any attribute including `style`, and
 `href` on `<use>`, `<pattern>`, `<linearGradient>`, `<radialGradient>`, `<filter>` and
-`<feImage>`. `<a href="#id">` and the animation elements are not followed. A percent-encoded
-fragment is decoded first (`#%61` is `#a`), as browsers do before the id lookup.
+`<feImage>`; `href` on `<a>` and on the animation elements is not followed, but `url(#id)` in
+their other attributes is (`<set to="url(#a)">`). A percent-encoded `#id` is decoded first
+(`#%61` is `#a`), as browsers do before the id lookup.
 
 - A loop (`#a` references `#b` which references `#a`, or `#a` references itself) rejects
   with `reference-expansion-too-large` and `form a loop (#a -> #b -> #a)`.
 - The elements the references would render are counted. More than 100,000 rejects with
-  `expand to more than 100,000 elements`. Ten nested patterns of ten rects each is enough.
+  `expand to more than 100,000 elements`. Five nested patterns of ten rects each is enough.
 - Every `id` is a record, so is every distinct target of an element that renders on its
   own, and each reference is recorded once more per element with an `id` around it; the
   same target inside the same `id` is one record. More than 100,000 records rejects with
@@ -410,7 +431,7 @@ unicode-bidi vector-effect visibility white-space word-spacing writing-mode
 ```
 <!-- /rules:attributes -->
 
-**`namespacedAttributes`**, keyed by namespace URI:
+**`namespacedAttributes`**, keyed by namespace URI.
 
 <!-- rules:namespacedAttributes -->
 | Namespace                              | Attributes      |
@@ -420,7 +441,7 @@ unicode-bidi vector-effect visibility white-space word-spacing writing-mode
 <!-- /rules:namespacedAttributes -->
 
 **`inertNamespaces`**: elements and attributes in these pass without a name check (except
-`on*`, a `script` element, and an element written without a prefix); the attribute values
+`on*`, a `<script>` element, and an element written without a prefix); the attribute values
 of an inert element are still checked. Matched by the start of the URI, so every namespace
 under `http://ns.adobe.com/` or `http://purl.org/dc/` counts.
 
@@ -442,8 +463,8 @@ http://www.w3.org/2001/XMLSchema-instance
 ```
 <!-- /rules:inertNamespaces -->
 
-**`inertProcessingInstructions`**: `<?target ...?>` lines that pass, by target. `xpacket`
-is the pair of markers Adobe tools put around their XMP metadata block; nothing reads them.
+**`inertProcessingInstructions`**: processing-instruction targets that are accepted. Adobe
+tools put a pair of `xpacket` markers around their XMP metadata block, and nothing reads them.
 Every other target rejects with `processing-instruction`.
 
 <!-- rules:inertProcessingInstructions -->
@@ -487,27 +508,27 @@ The SvgSecurityCheck limits are public static properties, set before the check
 (`SvgSecurityCheck::$maxExpandedElements = 250000;`). The memory a hostile file can cost rises
 with them. The rules themselves have no options.
 
-| Limit                                | Value         | Source                 |
-|--------------------------------------|---------------|------------------------|
-| Bytes searched for the root tag      | 64 KB         | `$prologLimit`         |
-| Errors reported per file             | 50            | `$maxErrors`           |
-| Embedded SVG nesting                 | 3 levels      | `$maxEmbedDepth`       |
-| Elements rendered through references | 100,000       | `$maxExpandedElements` |
-| Ids and references recorded          | 100,000       | `$maxReferenceEntries` |
-| Text in one `<style>` element        | 1 MB          | `$maxStyleLength`      |
-| Value length in `detail`             | 60 characters | `$maxDetailLength`     |
-| Element nesting depth                | 256           | libxml2 default        |
-| Single text node                     | 10 MB         | libxml2 default        |
-| File size                            | none          | the file is streamed   |
+| Limit                                | Value         | Source                                   |
+|--------------------------------------|---------------|------------------------------------------|
+| Bytes searched for the root tag      | 64 KB         | `$prologLimit`                           |
+| Errors reported per file             | 50            | `$maxErrors`                             |
+| Embedded SVG nesting                 | 3 levels      | `$maxEmbedDepth`                         |
+| Elements rendered through references | 100,000       | `$maxExpandedElements`                   |
+| Ids and references recorded          | 100,000       | `$maxReferenceEntries`                   |
+| Text in one `<style>` element        | 1 MB          | `$maxStyleLength`                        |
+| Value length in `detail`             | 60 characters | `$maxDetailLength`                       |
+| Element nesting depth                | 256           | libxml2 default                          |
+| Single text node                     | 10 MB         | libxml2 default                          |
+| File size                            | none          | streamed, except embedded `data:` images |
 
 ## How the Rules Compare to Chrome
 
 The yardstick is Chrome's `<img>` mode: the browser parses everything, then disables script,
 interaction and every fetch that is not a `data:` URL at render time. The rules are
 **stricter** wherever that protection is render-time only and disappears when the file is
-opened directly or rasterized on a server:
+opened directly or rasterized on a server.
 
-| Chrome in `<img>`                            | Rule here                             |
+| Chrome's `<img>` mode                        | Rule here                             |
 |----------------------------------------------|---------------------------------------|
 | `<script>` parsed, never runs                | `element-not-allowed`                 |
 | `on*` attributes ignored                     | `event-handler`                       |
@@ -520,39 +541,41 @@ opened directly or rasterized on a server:
 | SVG inside `<image>` rendered in secure mode | checked with every rule               |
 
 **Looser than Chrome, or not mirrored:** `:hover`, `:visited`, `:focus` in CSS and
-`begin="click"` in SMIL are accepted (Chrome makes them do nothing in `<img>`; opened directly
-they work; nothing loads or runs either way). `animateColor` and `discard` are rejected as
-unknown elements although Chrome would tolerate them.
+`begin="click"` in SMIL are accepted (Chrome's `<img>` mode makes them do nothing; opened
+directly they work; nothing loads or runs either way). Two elements are rejected as unknown
+although they carry no attack: `<animateColor>` and `<discard>`, which no design tool exports.
 
 ## Constraints and Gotchas
 
 - **No cleaned output.** The result is accept or reject. Store the original bytes or refuse.
-- **No line numbers.** `Violation` has `code` and `detail` only. The one exception is the
+- **No line numbers.** A `Violation` has no line or column property; the one exception is the
   libxml2 message inside a `malformed-xml` detail, which names a line.
 - **Same problem once.** Five `<script>` elements report one error; five different `on*`
   attributes report five.
 - **A small malformed file reports only `malformed-xml`.** libxml2 parses in chunks and
   discards the chunk containing the error, so errors in the same chunk are not seen. A large
-  file reports the errors found before the broken chunk, then `malformed-xml` last.
+  file reports the errors found before the broken chunk, then `malformed-xml` last. An
+  undefined namespace prefix does not stop libxml2, so the element is reported as well.
 - **50 errors and the check stops.** Nothing is read past the fiftieth, including a parse
   error later in the file.
 - **`detail` and `message` are unencoded text from the file.** Always one line of valid
   UTF-8 (control characters and bytes that are not UTF-8 are escaped, as `\n` or `\351`),
-  but they can hold `</script>`, quotes and backticks. HTML-encode for a page. A JSON response with
-  `Content-Type: application/json` needs nothing extra. Inside a `<script>` block:
+  but they can hold `</script>`, quotes and backticks. HTML-encode for a page. A JSON response
+  with `Content-Type: application/json` needs nothing extra on the server, and the page script
+  inserts the text with `textContent`, not `innerHTML`. Inside a `<script>` block:
 
   ```php
   $json = json_encode($violation->message, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
   ```
-- **Element and attribute names are case-sensitive**; `on*` detection, `script` in other
+- **Element and attribute names are case-sensitive**; `on*` detection, `<script>` in other
   namespaces, data image types, and CSS tokens, functions and at-rules are case-insensitive.
 - **`href` is trimmed before checking**, so `href="  #a"` passes; `href=""` rejects with
   `(empty)`.
 - **Not checked:** whether a `#id` target exists, the file extension, the MIME type, file
   size, CSS property names and selectors without functions, and references made through CSS
-  classes.
+  selectors in `<style>`.
 - **Serving an accepted file:** it is safe to open directly with no special headers, and no
-  script runs and nothing loads from outside even if it is served as `text/html`: the
+  script runs and nothing loads from outside even if it is served as `text/html`, because the
   element prefix, `xmlns:xlink`, comment, CDATA, processing-instruction and text-only
   `<title>`/`<desc>` rules close the places where an HTML parser reads the file differently
   from XML. Refuse `.svgz` and HTML uploads at the extension check; this library does not
