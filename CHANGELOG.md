@@ -4,7 +4,9 @@
 > CMS Builder are marked on their sections. Error codes are never renamed once released,
 > so code that switches on `$violation->code` needs no changes between versions.
 
-## [UNRELEASED]
+## [1.0.0] - 2026-10-13
+
+> **Bundled with CMS Builder v3.85**
 
 First release. SvgSecurityCheck checks an uploaded SVG file and rejects it if it could run
 script, load an outside resource, or hang a renderer. It never rewrites the file. The
