@@ -34,7 +34,7 @@ class PcreLimitTest extends SvgSecurityCheckTestCase
             'encoding declaration' => ['<?xml version="1.0" encoding="UTF-8"?>' . $open . '</svg>', 'not-utf8', 'declared in a form that could not be read'],
             'css in style'         => [$open . '<style>.a{fill:url(#a)}</style></svg>', 'css-not-allowed', 'text that could not be scanned'],
             'url() in attribute'   => [$open . '<rect fill="url(#a)"/></svg>', 'url-not-fragment', 'fill'],
-            'reference counting'   => [$open . '<rect fill="url(#a)"/></svg>', 'reference-expansion-too-large', 'could not be counted'],
+            'reference counting'   => [$open . '<rect fill="url(\'#a\')"/></svg>', 'reference-expansion-too-large', 'could not be counted'],   // quoted: the JIT matches url(#a) in under 2 steps
         ];
     }
 }

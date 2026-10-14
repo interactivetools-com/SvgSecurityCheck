@@ -68,6 +68,7 @@ class AttributesTest extends SvgSecurityCheckTestCase
     {
         return [
             'xlink'                        => ['xmlns:xlink="http://www.w3.org/1999/xlink"'],
+            'xlink in upper case'          => ['xmlns:XLINK="http://www.w3.org/1999/xlink"'],
             'unused prefix'                => ['xmlns:foo="http://example.com/"'],
             'prefix that starts with on'   => ['xmlns:onx="http://example.com/"'],
             'prefix that is exactly on'    => ['xmlns:on="http://example.com/"'],
@@ -89,6 +90,10 @@ class AttributesTest extends SvgSecurityCheckTestCase
             'on the root'           => ['<a xlink:href="javascript:alert(1)"><rect/></a>', $adobe],
             'on the element'        => ["<image $adobe xlink:href=\"https://evil.example/a.png\"/>", ''],
             'on a metadata element' => ["<metadata><x:meta xmlns:x=\"http://ns.adobe.com/x\" $adobe/></metadata>", ''],
+            // HTML lowercases attribute names, so XLINK:href and xLiNk:HrEf are xlink:href to it
+            'upper case'            => ['<a XLINK:href="javascript:alert(1)"><rect/></a>', 'xmlns:XLINK="http://ns.adobe.com/x"'],
+            'mixed case'            => ['<image xLiNk:HrEf="https://evil.example/a.png"/>', 'xmlns:xLiNk="http://ns.adobe.com/x"'],
+            'mixed case, rebound'   => ['<g xmlns:Xlink="http://ns.adobe.com/x"><use Xlink:href="https://evil.example/a.svg#a"/></g>', 'xmlns:Xlink="http://www.w3.org/1999/xlink"'],
         ];
     }
 

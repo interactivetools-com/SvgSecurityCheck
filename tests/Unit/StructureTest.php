@@ -130,11 +130,12 @@ class StructureTest extends SvgSecurityCheckTestCase
 
     public static function rejectedPrologProvider(): array
     {
-        $svg    = '<svg xmlns="http://www.w3.org/2000/svg"/>';
-        $subset = 'it contains an internal DTD subset (entity declarations)';
-        $noRoot = 'no root element within the first 64 KB';
-        $svgDtd = '"-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"';
-        $laughs = '<!DOCTYPE lolz [<!ENTITY lol "lol"><!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">]>';
+        $svg      = '<svg xmlns="http://www.w3.org/2000/svg"/>';
+        $subset   = 'it contains an internal DTD subset (entity declarations)';
+        $quotedGt = 'a quoted id contains >, where HTML parsers end it';
+        $noRoot   = 'no root element within the first 64 KB';
+        $svgDtd   = '"-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"';
+        $laughs   = '<!DOCTYPE lolz [<!ENTITY lol "lol"><!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">]>';
         return [
             'empty file'                    => ['', 'not-svg', 'nothing (the file is empty)'],
             'whitespace only'               => ["  \n\t", 'not-svg', 'nothing (the file is empty)'],
@@ -152,6 +153,10 @@ class StructureTest extends SvgSecurityCheckTestCase
             'internal subset'               => ['<!DOCTYPE svg [<!ENTITY x "y">]>' . $svg, 'doctype-not-allowed', $subset],
             'internal subset after the ids' => ["<!DOCTYPE svg PUBLIC $svgDtd [ <!ENTITY ns_svg \"http://www.w3.org/2000/svg\"> ]>$svg", 'doctype-not-allowed', $subset],
             'billion laughs'                => [$laughs . $svg, 'doctype-not-allowed', $subset],
+            // an HTML parser ends the DOCTYPE at the first >, so the <img> would be live markup served as text/html
+            'system id holding >'           => ['<!DOCTYPE svg SYSTEM "x><img src=x onerror=alert(1)>">' . $svg, 'doctype-not-allowed', $quotedGt],
+            'single-quoted system id'       => ["<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" 'x><img src=x onerror=alert(1)>'>$svg", 'doctype-not-allowed', $quotedGt],
+            'public id holding >'           => ['<!DOCTYPE svg PUBLIC "a>b" "x.dtd">' . $svg, 'doctype-not-allowed', $quotedGt],
             'root tag after 64 KB'          => ['<!-- ' . str_repeat('x', 70000) . ' -->' . $svg, 'malformed-xml', $noRoot],
             'comment never closed'          => ['<!-- never closed', 'malformed-xml', $noRoot],
         ];

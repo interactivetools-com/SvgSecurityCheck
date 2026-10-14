@@ -162,7 +162,7 @@ fix to show the uploader for each code is in [errors.md](errors.md).
 | `not-svg`                       | `This is not an SVG file: it starts with %s`                                            | the first 20 bytes, control and non-ASCII bytes escaped, or `nothing (the file is empty)`                                                 |
 | `not-utf8`                      | `SVG files must be UTF-8, this one is %s`                                               | `UTF-16 or UTF-32` or `declared as ISO-8859-1` (the declared encoding)                                                                    |
 | `malformed-xml`                 | `The SVG is not well-formed XML: %s`                                                    | libxml2's message plus ` (line N)`, or `no root element within the first 64 KB`                                                           |
-| `doctype-not-allowed`           | `The DOCTYPE declaration is not allowed because %s`                                     | `it contains an internal DTD subset (entity declarations)`                                                                                |
+| `doctype-not-allowed`           | `The DOCTYPE declaration is not allowed because %s`                                     | `it contains an internal DTD subset (entity declarations)` or `a quoted id contains >, where HTML parsers end it`                         |
 | `processing-instruction`        | `Processing instructions like <?%s?> are not allowed`                                   | the instruction's target, such as `xml-stylesheet`; for an `xpacket` marker holding `>`, the target and its text                          |
 | `comment-not-allowed`           | `A comment starting with <!--%s is not allowed, HTML parsers close it there`            | `>` or `->`                                                                                                                               |
 | `cdata-not-allowed`             | `A CDATA section containing > is not allowed inside <%s>, HTML parsers end it there`    | `title` or `desc`                                                                                                                         |
@@ -204,8 +204,10 @@ anything found earlier in the file.
   but `utf-8` (case-insensitive). A UTF-8 byte order mark is accepted and skipped.
 - **`not-svg`**: after the byte order mark and leading whitespace, the first byte is not `<`.
   An empty or whitespace-only file reports `nothing (the file is empty)`.
-- **`doctype-not-allowed`**: a `<!DOCTYPE` with an internal subset (`[`). A DOCTYPE with only
-  a public or system id is accepted; nothing is fetched (`LIBXML_NONET`, `LOADDTD` off,
+- **`doctype-not-allowed`**: a `<!DOCTYPE` with an internal subset (`[`), or a quoted public
+  or system id that holds a `>`. An HTML parser ends the DOCTYPE at the first `>`, inside
+  quotes or not, so markup after it would be live if the file were served as `text/html`.
+  A DOCTYPE with only a public or system id is otherwise accepted; nothing is fetched (`LIBXML_NONET`, `LOADDTD` off,
   `SUBST_ENTITIES` off), so an entity that such a DTD would define reports `malformed-xml`
   (`Entity 'foo' not defined`). The five built-in entities and numeric character references
   are accepted.
@@ -262,14 +264,15 @@ Not allowed on purpose: `<script>`, `<foreignObject>`, `<handler>`, `<listener>`
 
 For every attribute on an element in the SVG namespace or an inert namespace, in this order:
 
-1. `xmlns` and `xmlns:*` declarations pass, except `xmlns:xlink` bound to anything other
-   than `http://www.w3.org/1999/xlink`, which rejects with `xlink-prefix-wrong`. HTML
-   parsers read `xlink:href` by its spelling, so a rebound prefix would turn an unchecked
-   attribute into a working link if the file were served as `text/html`.
+1. `xmlns` and `xmlns:*` declarations pass, except `xmlns:xlink` (in any case, such as
+   `xmlns:XLINK`) bound to anything other than `http://www.w3.org/1999/xlink`, which rejects
+   with `xlink-prefix-wrong`. HTML parsers lowercase attribute names and read `xlink:href`
+   by its spelling, so a rebound prefix would turn an unchecked attribute into a working
+   link if the file were served as `text/html`.
 2. A name whose local part starts with `on` (case-insensitive, any namespace, any element
    including inert ones) rejects with `event-handler`. No allowed attribute starts with `on`.
 3. An attribute in an inert namespace passes. It always has a prefix, and step 1 keeps that
-   prefix from being `xlink`, so no parser reads it.
+   prefix from being `xlink` in any case, so no parser reads it.
 4. On an SVG element, an unprefixed name must be in the [attributes allowlist](#allowlists)
    or start with `data-` or `aria-`. A prefixed name must be `lang` or `space` in the XML
    namespace or `href` or `title` in the XLink namespace, matched by namespace, not by the
@@ -331,7 +334,9 @@ attribute value except `href`, `data-*` and `aria-*`. All matching is case-insen
    with the at-rule as the detail (`@import`).
 4. `url(` whose target, after optional whitespace and quote, does not start with `#`,
    `data:font/`, or `data:;base64,` rejects with the `url(` and up to 40 characters after it
-   as the detail.
+   as the detail. The whitespace is CSS's own (space, tab, newline, form feed). A browser
+   keeps a no-break space or other Unicode space as part of the URL, so a target that
+   starts with one rejects.
 5. More than 1,000,000 bytes of text in one `<style>` element rejects with
    `more than 1,000,000 bytes` as the detail. The text is held whole until the closing tag,
    so the limit keeps memory at 1 MB.
@@ -366,8 +371,10 @@ After the whole file is read (and only when it parsed cleanly), every same-file 
 that renders its target is followed: `url(#id)` in any attribute including `style`, and
 `href` on `<use>`, `<pattern>`, `<linearGradient>`, `<radialGradient>`, `<filter>` and
 `<feImage>`; `href` on `<a>` and on the animation elements is not followed, but `url(#id)` in
-their other attributes is (`<set to="url(#a)">`). A percent-encoded `#id` is decoded first
-(`#%61` is `#a`), as browsers do before the id lookup.
+their other attributes is (`<set to="url(#a)">`). Each target is read the way browsers read
+it before the id lookup: a quoted id runs to its closing quote (`url('#a)b')` is id `a)b`),
+tabs, newlines and trailing spaces are dropped, and a percent-encoded `#id` is decoded
+(`#%61` is `#a`).
 
 - A loop (`#a` references `#b` which references `#a`, or `#a` references itself) rejects
   with `reference-expansion-too-large` and `form a loop (#a -> #b -> #a)`.

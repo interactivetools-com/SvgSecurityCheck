@@ -381,6 +381,36 @@ class UrlsTest extends SvgSecurityCheckTestCase
         $this->assertRejects(str_replace('fill="url(#p', 'style="fill:url(#%70', $this->patternChain(10, 5)), 'reference-expansion-too-large', $detail);
     }
 
+    /**
+     * A quoted id runs to its closing quote, and a browser's URL parser drops tabs and
+     * trailing spaces, so url('#p)5') renders id="p)5" and #p&#9;5 renders id="p5".
+     */
+    #[DataProvider('quotedFragmentProvider')]
+    public function testQuotedFragmentCannotHideABomb(string $idPrefix, string $urlFormat): void
+    {
+        $svg = $this->patternChain(10, 5);
+        for ($level = 0; $level <= 5; $level++) {
+            $svg = str_replace(["id=\"p$level\"", "url(#p$level)"], ["id=\"$idPrefix$level\"", sprintf($urlFormat, $level)], $svg);
+        }
+        $this->assertRejects($svg, 'reference-expansion-too-large', 'expand to more than 100,000 elements');
+    }
+
+    public static function quotedFragmentProvider(): array
+    {
+        return [
+            'single quotes around a )'  => ['p)', "url('#p)%d')"],
+            'double quotes around a )'  => ['p)', 'url(&quot;#p)%d&quot;)'],
+            'double quotes around a \'' => ["p'", "url(&quot;#p'%d&quot;)"],
+            'trailing space'            => ['p', "url('#p%d ')"],
+            'tab inside the id'         => ['p', "url('#p&#9;%d')"],
+        ];
+    }
+
+    public function testTabInsideAnHrefCannotHideABomb(): void
+    {
+        $this->assertRejects(str_replace('href="#l', 'href="#l&#9;', $this->useTree(10, 5)), 'reference-expansion-too-large', 'expand to more than 100,000 elements');
+    }
+
     public function testEncodedFragmentLoop(): void
     {
         $this->assertRejects($this->svg('<g id="a"><use href="#%62"/></g><g id="b"><use href="#a"/></g><use href="#a"/>'), 'reference-expansion-too-large', 'form a loop (#b -> #a -> #b)');
@@ -479,6 +509,7 @@ class UrlsTest extends SvgSecurityCheckTestCase
             'pattern template itself'   => ['<defs><pattern id="p" href="#p"/></defs><rect fill="url(#p)"/>', '#p -> #p'],
             'through a style attribute' => ['<defs><pattern id="p"><rect style="fill: url(#p)"/></pattern></defs><rect style="fill:url(#p)"/>', '#p -> #p'],
             'use inside a pattern'      => ['<defs><pattern id="p"><use href="#p"/></pattern></defs><rect fill="url(#p)"/>', '#p -> #p'],
+            'quoted id with a )'        => ['<defs><pattern id="p)"><rect fill="url(\'#p)\')"/></pattern></defs><rect fill="url(\'#p)\')"/>', '#p) -> #p)'],
         ];
     }
 

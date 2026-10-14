@@ -37,6 +37,7 @@ class CssTest extends SvgSecurityCheckTestCase
             'plain rules'              => ['.st0{fill:#1D4ED8;stroke:none} .st1{font-family:\'Helvetica Neue\', Arial, sans-serif}'],
             'fragment url'             => ['.a{fill:url(#grad)}'],
             'fragment url, quoted'     => ['.a{fill:url(\'#grad\');filter:url( "#f" )}'],
+            'fragment url, css whitespace' => [".a{fill:url(\t\n\"#grad\")}"],
             'keyframes'                => ['@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}} .a{animation:spin 1s linear infinite}'],
             'media query'              => ['@media (prefers-color-scheme: dark){.a{fill:#fff}}'],
             'media query, minified'    => ['@media(prefers-color-scheme:dark){.a{fill:#fff}}'],   // media( is the at-rule, not a function
@@ -117,6 +118,11 @@ class CssTest extends SvgSecurityCheckTestCase
             'protocol-relative url'     => ['.a{fill:url(//evil.example/p.svg#a)}', 'url(//evil.example/p.svg#a'],
             'javascript url'            => ['.a{fill:url(javascript:alert(1))}', 'url(javascript:alert(1'],
             'data image in css'         => ['.a{background:url(data:image/png;base64,AAAA)}', 'url(data:image/png;base64,AAAA'],
+            // a browser keeps Unicode spaces as part of the URL, so these load "%C2%A0data:font/..." from the server
+            'no-break space before data:font' => ["@font-face{font-family:F;src:url(\"\u{A0}data:font/woff2;base64,AA\")}", "url(\"\u{A0}data:font/woff2;base64,AA\""],
+            'no-break space before #'         => [".a{fill:url('\u{A0}#p')}", "url('\u{A0}#p'"],
+            'next line before #'              => [".a{fill:url(\u{85}#p)}", "url(\u{85}#p"],
+            'ideographic space before data:'  => ["@font-face{font-family:F;src:url(\u{3000}data:;base64,AA)}", "url(\u{3000}data:;base64,AA"],
         ];
     }
 

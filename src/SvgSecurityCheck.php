@@ -8,7 +8,7 @@ use LibXMLError;
 use XMLReader;
 
 // import built-ins so calls resolve at compile time instead of per-call lookups; NamespacedCallsTest keeps this list exact
-use function addcslashes, array_key_last, array_keys, array_map, array_pop, array_push, array_values, base64_decode, basename, count, explode, file_get_contents, implode, in_array, intdiv, is_file, is_readable, libxml_clear_errors, libxml_get_errors, libxml_use_internal_errors, min, number_format, preg_match, preg_match_all, rawurldecode, rawurlencode, str_contains, str_starts_with, strcasecmp, stripos, strlen, strpos, strrchr, strspn, strtolower, strval, substr, substr_compare, trim;
+use function addcslashes, array_key_last, array_keys, array_map, array_pop, array_push, array_values, base64_decode, basename, count, explode, file_get_contents, implode, in_array, intdiv, is_file, is_readable, libxml_clear_errors, libxml_get_errors, libxml_use_internal_errors, min, number_format, preg_match, preg_match_all, rawurldecode, rawurlencode, rtrim, str_contains, str_replace, str_starts_with, strcasecmp, stripos, strlen, strpos, strrchr, strspn, strtolower, strval, substr, substr_compare, trim;
 use const LIBXML_NONET, PHP_OS_FAMILY;
 
 /**
@@ -200,8 +200,9 @@ final class SvgSecurityCheck
     private const CSS_AT_RULE = '/@(-?+[a-z_][\w-]*+)/i';
 
     // url( in CSS that is not #id and not an embedded font (data:font/... or data:;base64,...), with up to 40 chars of context
-    // (u so the 40 counts characters, not bytes: a cut inside a multibyte character would make detail invalid UTF-8)
-    private const CSS_URL_NOT_ALLOWED = '/url\(\s*+["\']?+\s*+(?!#|data:font\/|data:;base64,)[^)]{0,40}/iu';
+    // (u so the 40 counts characters, not bytes: a cut inside a multibyte character would make detail invalid UTF-8).
+    // The whitespace is CSS's own, not \s: with u, \s also skips a no-break space, which a browser keeps as part of the URL.
+    private const CSS_URL_NOT_ALLOWED = '/url\([ \t\n\r\f]*+["\']?+[ \t\n\r\f]*+(?!#|data:font\/|data:;base64,)[^)]{0,40}/iu';
 
     // Limits. Public so an application with an unusual file can raise one; the memory a hostile file can cost rises with it.
     public static int $prologLimit         = 65536;    // the root tag must start within this many bytes
@@ -388,7 +389,6 @@ final class SvgSecurityCheck
             } elseif (substr_compare($firstBytes, '<!DOCTYPE', $pos, 9) === 0) {
                 $end = $this->doctypeEnd($firstBytes, $pos + 9);
                 if ($end === null) {
-                    $this->fail('doctype-not-allowed', 'it contains an internal DTD subset (entity declarations)');
                     return false;
                 }
                 $pos = $end;
@@ -401,9 +401,11 @@ final class SvgSecurityCheck
     }
 
     /**
-     * Returns the offset just past the DOCTYPE's closing >, or null when a [ opens an
-     * internal subset first. Quoted public and system ids are skipped, so a [ inside them
-     * does not count.
+     * Returns the offset just past the DOCTYPE's closing >, or null after reporting an
+     * internal subset or a quoted id that holds a >. XML skips quoted public and system ids,
+     * so a [ inside them does not count. An HTML parser ends the DOCTYPE at the first >,
+     * quotes or not, so markup after a > inside an id would run unchecked if the file were
+     * served as text/html.
      */
     private function doctypeEnd(string $head, int $pos): ?int
     {
@@ -415,10 +417,16 @@ final class SvgSecurityCheck
                 if ($close === false) {
                     return $length;
                 }
+                $gt = strpos($head, '>', $pos + 1);
+                if ($gt !== false && $gt < $close) {
+                    $this->fail('doctype-not-allowed', 'a quoted id contains >, where HTML parsers end it');
+                    return null;
+                }
                 $pos = $close + 1;
                 continue;
             }
             if ($char === '[') {
+                $this->fail('doctype-not-allowed', 'it contains an internal DTD subset (entity declarations)');
                 return null;
             }
             if ($char === '>') {
@@ -588,9 +596,10 @@ final class SvgSecurityCheck
         $value     = $reader->value;
 
         if ($namespace === self::XMLNS_NS) {
-            // an HTML parser reads xlink:href by its spelling, so xmlns:xlink="http://ns.adobe.com/x" would
-            // turn an unchecked metadata attribute into a working link if the file were served as text/html
-            if ($attribute === 'xlink' && $value !== self::XLINK_NS) {
+            // an HTML parser lowercases attribute names and reads xlink:href by its spelling, so xmlns:xlink or
+            // xmlns:XLINK="http://ns.adobe.com/x" would turn an unchecked metadata attribute into a working link
+            // if the file were served as text/html
+            if (strcasecmp($attribute, 'xlink') === 0 && $value !== self::XLINK_NS) {
                 $this->fail('xlink-prefix-wrong', self::excerpt($value));
             }
             return;
@@ -599,7 +608,7 @@ final class SvgSecurityCheck
             $this->fail('event-handler', self::excerpt($name));
             return;
         }
-        if ($namespace !== '' && self::isInertNamespace($namespace)) {   // always prefixed, and the prefix is never xlink, so no parser reads it
+        if ($namespace !== '' && self::isInertNamespace($namespace)) {   // always prefixed, and the prefix is never xlink in any case, so no parser reads it
             return;
         }
 
@@ -659,8 +668,9 @@ final class SvgSecurityCheck
     // elements whose content renders only when something references it
     private const HIDDEN_ELEMENTS = ['defs', 'symbol', 'pattern', 'mask', 'marker', 'clipPath', 'filter'];
 
-    // url(#id) in an attribute value, quotes and whitespace allowed: url( "#id" ); captures the id
-    private const URL_FRAGMENT = '/url\(\s*+["\']?+\s*+#([^"\')\s]*)/i';
+    // url(#id) in an attribute value, quotes and whitespace allowed: url( "#id" ); captures the id. A quoted id runs to
+    // its closing quote, since url('#p)q') references id="p)q"; (?| numbers each branch's capture as group 1
+    private const URL_FRAGMENT = '/url\(\s*+(?|"\s*+#([^"]*)|\'\s*+#([^\']*)|#([^"\')\s]*))/i';
 
     /** @var array<int, string> id of each open element that has one, by depth */
     private array $openIds = [];
@@ -735,6 +745,7 @@ final class SvgSecurityCheck
             if ($this->tooManyReferences()) {   // checked per target: one element can carry thousands of url() attributes
                 return;
             }
+            $target = str_replace(["\t", "\n", "\r"], '', rtrim($target));   // a browser's URL parser drops these, so url('#p&#9;q ') renders id="pq"
             if (str_contains($target, '%')) {
                 $target = rawurldecode($target);   // browsers decode the fragment before looking up the id, so #%61 renders id="a"
             }
