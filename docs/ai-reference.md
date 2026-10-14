@@ -584,8 +584,10 @@ although they carry no attack: `<animateColor>` and `<discard>`, which no design
   `Content-Security-Policy: sandbox` block script in case a rule is ever bypassed. The rules
   do not depend on them.
 - **Not for inline SVG.** An accepted file is safe to serve as its own document or through
-  `<img>`. Pasting SVG source into an HTML page is a different threat model (the page's
-  origin, the page's scripts) and is not what these rules were built for.
+  `<img>`. SVG source written straight into an HTML page becomes part of that page: its
+  `<style>` rules apply to the whole page and its ids mix with the page's own, which these
+  rules do not check. Show an accepted file with `<img src>`, and sanitize inline SVG on
+  output with DOMPurify.
 - **Not configurable.** There is no way to allow an extra element or attribute. Open an issue
   with the file that was rejected. The size limits are the one exception, see
   [Limits](#limits).

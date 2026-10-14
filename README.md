@@ -118,8 +118,10 @@ If Apache or nginx serves the upload folder directly, set them there for `.svg` 
 - **You must accept SVG from the public and cannot ask for a re-export.** Use a sanitizer such
   as [enshrined/svg-sanitize](https://github.com/darylldoyle/svg-sanitizer) and re-check its
   output with SvgSecurityCheck.
-- **You put SVG source inline in HTML pages.** Inline SVG runs with the page's origin and next
-  to its scripts, so sanitize on output with DOMPurify.
+- **You paste SVG source into your HTML pages.** Markup written straight into a page, instead of
+  loaded through `<img>`, becomes part of that page: its `<style>` rules apply to the whole
+  page and its ids mix with the page's own, which these rules do not check for. Sanitize
+  inline SVG on output with DOMPurify.
 
 ## Security
 
