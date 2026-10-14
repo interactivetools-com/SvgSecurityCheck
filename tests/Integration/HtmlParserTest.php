@@ -20,7 +20,8 @@ use PHPUnit\Framework\Attributes\RequiresPhp;
  *
  * PHP's parser is not Chrome's. Chrome reads <![CDATA[ directly inside <title> or <desc> as a
  * comment that ends at the first >, so markup in it runs; PHP keeps it as text. So this test
- * cannot catch a regression in the CDATA rule. StructureTest's CDATA cases do.
+ * cannot catch a regression in the CDATA rule. ChromeCrossCheckTest and StructureTest's CDATA
+ * cases do.
  */
 #[RequiresPhp('>= 8.4')]
 class HtmlParserTest extends SvgSecurityCheckTestCase
@@ -71,6 +72,9 @@ class HtmlParserTest extends SvgSecurityCheckTestCase
             'escaped markup in title'       => '<title>&lt;img src=x onerror=alert(1)&gt;</title>',
             'cdata in title without >'      => '<title><![CDATA[<img src=x onerror=alert(1)]]></title>',
             'metadata with prefixed script' => '<x:scripted xmlns:x="http://ns.adobe.com/x">alert(1)</x:scripted>',
+            'metadata with a style'         => '<x:meta xmlns:x="http://ns.adobe.com/x" style="fill:red"/>',
+            'escaped style in desc'         => '<desc>&lt;style/&gt;svg{fill:url(https://example.com/a)}</desc>',
+            'xlink bound correctly'         => '<a xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#r"><rect id="r"/></a>',
         ];
         foreach ($nearMiss as $name => $body) {
             $cases[$name] = [$open . $body . '</svg>'];

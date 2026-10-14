@@ -1,0 +1,71 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>cross-check</title>
+<!-- ChromeCrossCheckTest fills in the cases, runs this page in headless Chrome and reads the result out of the pre -->
+<script id="cases" type="application/json">__CASES__</script>
+<pre id="out">not run</pre>
+<script>
+window.onerror = (message, source, line) => {
+    document.getElementById('out').textContent = 'ERR ' + message + ' line ' + line;
+};
+const cases = JSON.parse(document.getElementById('cases').textContent);
+document.getElementById('cases').remove();   // so the dumped DOM is the result, not the input again
+
+const HTML_NS  = 'http://www.w3.org/1999/xhtml';
+const XLINK_NS = 'http://www.w3.org/1999/xlink';
+const ACTIVE   = ['script', 'iframe', 'frame', 'object', 'embed', 'foreignobject'];
+
+// What one parse built: risks are wrong in any parse, values are every URL and every piece of CSS
+const read = (doc) => {
+    const risks  = [];
+    const values = [];
+    for (const element of doc.querySelectorAll('*')) {
+        const name = element.localName.toLowerCase();
+        if (ACTIVE.includes(name)) {
+            risks.push('<' + element.localName + '>');
+        }
+        if (element.namespaceURI === HTML_NS && !['html', 'head', 'body'].includes(name)) {
+            risks.push('HTML element <' + element.localName + '>');
+        }
+        for (const attribute of element.attributes) {
+            if (/^on/i.test(attribute.localName)) {
+                risks.push(attribute.name + '=');
+            }
+            // the scheme as a browser reads it: ASCII whitespace and controls dropped first
+            if (/^javascript:/i.test(attribute.value.replace(/[\x00-\x20\x7f]/g, ''))) {
+                risks.push(attribute.name + '="' + attribute.value.slice(0, 60) + '"');
+            }
+            const isLink = attribute.localName === 'href' && [null, XLINK_NS].includes(attribute.namespaceURI);
+            if (isLink || ['src', 'style'].includes(attribute.localName)) {
+                values.push(attribute.namespaceURI + ' ' + attribute.localName + '="' + attribute.value + '"');
+            }
+        }
+        if (name === 'style') {
+            values.push('<style> ' + element.textContent);
+        }
+    }
+    // XML turns tabs and newlines in attribute values into spaces and HTML keeps them; neither changes what loads
+    return {risks, values: values.map(value => value.replace(/\s+/g, ' ').trim())};
+};
+
+const found = {};
+for (const [name, svg] of Object.entries(cases)) {
+    const xmlDoc = new DOMParser().parseFromString(svg, 'image/svg+xml');   // what SvgSecurityCheck checked
+    if (xmlDoc.querySelector('parsererror')) {
+        found[name] = ['as SVG: Chrome could not parse it'];
+        continue;
+    }
+    const xml  = read(xmlDoc);
+    const html = read(new DOMParser().parseFromString(svg, 'text/html'));   // the same file served as text/html
+    const seen = new Set(xml.values);
+    const problems = [
+        ...xml.risks.map(risk => 'as SVG: ' + risk),
+        ...html.risks.map(risk => 'as HTML: ' + risk),
+        ...html.values.filter(value => !seen.has(value)).map(value => 'only as HTML: ' + value.slice(0, 80)),
+    ];
+    if (problems.length) {
+        found[name] = problems;
+    }
+}
+document.getElementById('out').textContent = JSON.stringify({checked: Object.keys(cases).length, found});
+</script>
