@@ -246,6 +246,18 @@ XInclude and the unknown ones are where the historical attacks were.
 
 The deciding question was whether the person can fix what they submitted.
 
+## `setlocale()`: Turkish and Azeri Locales Aren't Supported
+
+Under a Turkish or Azeri locale set with `setlocale()` (`LC_ALL` or `LC_CTYPE`), PHP's regular
+expressions stop matching `I` to `i`, and on PHP 8.1 so do `strtolower()` and `stripos()`.
+Code that ignores case can then miss a capital I. No other locale changes how ASCII is read
+(checked against all 529 glibc locales, 2026-10-16), and Windows builds aren't affected. A
+site that wants Turkish month and day names can set `LC_TIME` alone, which changes none of this.
+
+Here that means the check's case-insensitive rules miss a capital I: under `tr_TR.UTF-8`,
+`behavIor` and `-moz-bIndIng` pass. HtmlSecurityCheck switches `LC_CTYPE` to `C` around its
+check instead.
+
 ## The Corpus Stays Out of the Repo
 
 The allowlists were calibrated against public test suites and icon sets downloaded by
