@@ -2,13 +2,11 @@
 # Scan library code with Codex Security. Maintainer tooling: runs locally, not
 # in CI, and needs the codex-security CLI installed. Results go to the CLI's
 # state dir; view them with: codex-security scans list
-# Uses the CLI's default model, reasoning effort and scan limits. Additional CLI
-# flags can be passed as arguments. Run scans one repo at a time: concurrent scans
-# share a sandbox dir in /tmp and kill each other's workers.
+# Uses gpt-6-astra with the CLI's default reasoning effort and scan limits.
+# Additional CLI flags can be passed as arguments. Run scans one repo at a time:
+# concurrent scans share a sandbox dir in /tmp and kill each other's workers.
 # Full pre-release scan:
 #   .github/scripts/codex-security-scan.sh --mode deep
-# Pick a model:
-#   .github/scripts/codex-security-scan.sh --mode deep --model gpt-6-astra
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -120,6 +118,7 @@ what an accepted file can actually do.
 PROMPT
 
 codex-security scan . "${paths[@]}" \
+    --model gpt-6-astra \
     --knowledge-base docs/ai-reference.md \
     --knowledge-base docs/errors.md \
     --knowledge-base docs/internal/browser-research.md \
